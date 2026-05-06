@@ -7,9 +7,9 @@ type ButtonProps = PressableProps & {
 };
 
 export function Button({ title, variant = "primary", disabled, style, ...props }: ButtonProps) {
-  const backgroundColor = variant === "primary" ? theme.colors.primary : variant === "secondary" ? "rgba(255, 255, 255, 0.04)" : "transparent";
-  const borderColor = variant === "ghost" ? theme.colors.border : "transparent";
-  const textColor = variant === "primary" ? "#041019" : theme.colors.textPrimary;
+  const backgroundColor = variant === "primary" ? theme.colors.primary : "transparent";
+  const borderColor = variant === "primary" ? theme.colors.primary : variant === "secondary" ? theme.colors.primary : theme.colors.border;
+  const textColor = variant === "primary" ? theme.colors.textPrimary : theme.colors.primary;
 
   return (
     <Pressable
@@ -18,20 +18,21 @@ export function Button({ title, variant = "primary", disabled, style, ...props }
       style={(state) => [
         {
           minHeight: 48,
-          borderRadius: theme.radius.card,
+          borderRadius: theme.radius.pill,
           alignItems: "center",
           justifyContent: "center",
-          paddingHorizontal: 18,
+          paddingHorizontal: 24,
           backgroundColor,
           borderWidth: 1,
-          borderColor: variant === "secondary" ? theme.colors.border : borderColor,
-          opacity: disabled ? 0.5 : 1
+          borderColor,
+          opacity: disabled ? 0.5 : 1,
+          transform: [{ scale: state.pressed ? 0.97 : 1 }]
         },
         typeof style === "function" ? style(state) : (style as StyleProp<ViewStyle>)
       ]}
       {...props}
     >
-      <Text style={{ color: textColor, fontWeight: "800" }}>{title}</Text>
+      <Text style={{ color: textColor, fontFamily: theme.fonts.sansSemiBold, fontSize: 15 }}>{title}</Text>
     </Pressable>
   );
 }

@@ -1,15 +1,20 @@
-import { useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "@/components/ui/Button";
-import { theme } from "@/constants/theme";
-import { config } from "@/constants/config";
+import { colors, spacing, theme, typography } from "@/constants/theme";
 import { useAuthStore } from "@/stores/authStore";
+
+const stats = [
+  { icon: "cpu", label: "AI Risk Verdicts" },
+  { icon: "maximize-2", label: "ZBar QR Decoding" },
+  { icon: "gift", label: "SQR Reward Tiers" }
+] as const;
 
 export default function LandingScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { setSession, setUser } = useAuthStore();
 
   const startDemo = async () => {
@@ -19,53 +24,55 @@ export default function LandingScreen() {
   };
 
   return (
-    <LinearGradient colors={[theme.colors.background, "#0a1420", theme.colors.backgroundEnd]} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 18, paddingTop: insets.top + 28, paddingBottom: Math.max(insets.bottom, 18) + 18, justifyContent: "center", gap: 24 }}>
-        <View style={{ gap: 12 }}>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
-            <Text style={{ color: theme.colors.accent, fontSize: 12, fontWeight: "900", letterSpacing: 1.8 }}>HACKABULL DEMO</Text>
-            <Text style={{ color: theme.colors.muted, fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>POWERED BY SOLANA</Text>
+    <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.screenPad, paddingVertical: 40 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.primaryDim, borderRadius: spacing.badgeRadius, borderWidth: 1, borderColor: colors.primary, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 24 }}>
+            <Feather name="shield" size={12} color={colors.primaryLight} style={{ marginRight: 6 }} />
+            <Text style={{ ...typography.badge, color: colors.primaryLight }}>QR SECURITY SCANNER</Text>
           </View>
-          <Text style={{ color: theme.colors.textPrimary, fontSize: 48, lineHeight: 52, fontWeight: "900" }}>SafeScan QR</Text>
-          <Text style={{ color: theme.colors.textPrimary, fontSize: 20, lineHeight: 27, fontWeight: "900" }}>Can you distinguish a malicious QR?</Text>
-          <Text style={{ color: theme.colors.textSecondary, fontSize: 18, lineHeight: 28 }}>
-            A trust layer for QR links, wallet prompts, and payment redirects. Decode the payload, score the risk, and keep the user in control before anything runs.
-          </Text>
-        </View>
 
-        <View style={{ height: 300, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, backgroundColor: "#070b12", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-          <View style={{ position: "absolute", width: 235, height: 235, borderRadius: 999, borderWidth: 1, borderColor: "rgba(103, 242, 200, 0.2)", transform: [{ scaleY: 0.42 }] }} />
-          <View style={{ position: "absolute", width: 168, height: 168, borderRadius: 999, borderWidth: 1, borderColor: "rgba(90, 140, 255, 0.24)" }} />
-          <View style={{ width: 112, height: 112, borderRadius: 24, backgroundColor: "#f8fafc", padding: 12, gap: 8 }}>
-            {[0, 1, 2].map((row) => (
-              <View key={row} style={{ flexDirection: "row", gap: 8, flex: 1 }}>
-                {[0, 1, 2].map((col) => (
-                  <View key={`${row}-${col}`} style={{ flex: 1, borderRadius: 4, backgroundColor: (row + col) % 2 === 0 ? "#07070a" : "#94a3b8" }} />
-                ))}
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+            <Feather name="shield" size={28} color={colors.primaryLight} style={{ marginRight: 10 }} />
+            <Text style={{ ...typography.h1, fontSize: 36, textAlign: "center" }}>SafeScan QR</Text>
+          </View>
+
+          <Text style={{ ...typography.body, fontSize: 16, textAlign: "center", maxWidth: 320, marginBottom: 36 }}>
+            A trust layer for QR links, wallet prompts, and payment redirects.
+          </Text>
+
+          <View style={{ flexDirection: "row", marginBottom: 40, width: "100%" }}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Button title="Scan QR" onPress={startDemo} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button title="Analyze Payload" variant="secondary" onPress={startDemo} />
+            </View>
+          </View>
+
+          <View style={{ flexDirection: "row", width: "100%" }}>
+            {stats.map((stat, index) => (
+              <View
+                key={stat.label}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.surface,
+                  borderRadius: spacing.cardRadius,
+                  borderWidth: 1,
+                  borderColor: colors.surfaceBorder,
+                  padding: 12,
+                  alignItems: "center",
+                  marginRight: index === stats.length - 1 ? 0 : 12,
+                  ...theme.shadows.cardSubtle
+                }}
+              >
+                <Feather name={stat.icon} size={18} color={colors.accent} style={{ marginBottom: 6 }} />
+                <Text style={{ ...typography.label, textAlign: "center", lineHeight: 16 }}>{stat.label}</Text>
               </View>
             ))}
           </View>
-          <View style={{ position: "absolute", bottom: 16, left: 16, right: 16, borderRadius: 16, padding: 14, backgroundColor: "rgba(5, 8, 13, 0.72)", borderColor: "rgba(255,255,255,0.12)", borderWidth: 1 }}>
-            <Text style={{ color: theme.colors.accent, fontSize: 12, fontWeight: "900", letterSpacing: 1.6 }}>SOLANA MOBILE SCAN MODEL</Text>
-            <Text style={{ color: theme.colors.textSecondary, marginTop: 6, lineHeight: 20 }}>Cyber security inspired software, QR inspection, and threat shielding in one mobile scene.</Text>
-          </View>
-        </View>
-
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          {[["AI", "Risk verdicts"], ["QR", "Decoding"], ["SQR", "Reward tiers"]].map(([value, label]) => (
-            <View key={label} style={{ flex: 1, borderColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderRadius: 8, padding: 12, backgroundColor: "rgba(255,255,255,0.045)" }}>
-              <Text style={{ color: theme.colors.accent, fontWeight: "900" }}>{value}</Text>
-              <Text style={{ color: theme.colors.textSecondary, marginTop: 4, fontSize: 12 }}>{label}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={{ gap: 10 }}>
-          <Button title="Launch Demo App" onPress={startDemo} />
-          <Button title="Continue with Google" variant="secondary" onPress={() => router.push("/auth/google")} />
-          <Text style={{ color: theme.colors.muted }}>Beta - {config.appVersion}</Text>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </SafeAreaView>
     </LinearGradient>
   );
 }

@@ -1,31 +1,39 @@
 import { useState } from "react";
+import { Feather } from "@expo/vector-icons";
 import { LayoutAnimation, Pressable, Text, View } from "react-native";
-import { Card } from "@/components/ui/Card";
 import { SeverityBadge } from "@/components/risk/SeverityBadge";
+import { colors, typography } from "@/constants/theme";
 import type { Signal } from "@/services/api";
-import { theme } from "@/constants/theme";
 
 export function SignalAccordion({ signal }: { signal: Signal }) {
   const [expanded, setExpanded] = useState(false);
+  const detected = signal.passed !== true;
 
   return (
-    <Card style={{ backgroundColor: "rgba(0, 0, 0, 0.14)", padding: 0, overflow: "hidden" }}>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => {
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          setExpanded((value) => !value);
-        }}
-      >
-        <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12, padding: 14 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: theme.colors.textPrimary, fontWeight: "700" }}>{signal.check}</Text>
-            <Text style={{ color: theme.colors.textSecondary, marginTop: 4 }}>{signal.result}</Text>
-          </View>
-          <SeverityBadge severity={signal.severity} />
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setExpanded((value) => !value);
+      }}
+      style={{
+        opacity: detected ? 1 : 0.4,
+        backgroundColor: colors.surface,
+        borderColor: colors.surfaceBorder,
+        borderWidth: 1,
+        borderRadius: 12,
+        overflow: "hidden"
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", padding: 14 }}>
+        <View style={{ flex: 1, marginRight: 12 }}>
+          <Text style={{ ...typography.h3, fontSize: 15 }}>{signal.check}</Text>
+          <Text style={{ ...typography.body, marginTop: 4 }}>{signal.result}</Text>
         </View>
-        {expanded ? <Text style={{ color: theme.colors.textSecondary, lineHeight: 22, paddingHorizontal: 14, paddingBottom: 14 }}>{signal.description}</Text> : null}
-      </Pressable>
-    </Card>
+        <SeverityBadge severity={signal.severity} />
+        <Feather name={expanded ? "chevron-down" : "chevron-right"} size={18} color={colors.textMuted} style={{ marginLeft: 10 }} />
+      </View>
+      {expanded ? <Text style={{ ...typography.body, paddingHorizontal: 14, paddingBottom: 14 }}>{signal.description}</Text> : null}
+    </Pressable>
   );
 }

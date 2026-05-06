@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
+import { Pressable, Text, View } from "react-native";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { theme } from "@/constants/theme";
+import { colors, fonts, typography } from "@/constants/theme";
 
 const tokenAddress = "Bpdt7Hey78HeEEr9Q6x19gYAns5n6w44LdjJhxN3pump";
 
@@ -11,36 +11,38 @@ export function TokenInfoCard() {
   const [copied, setCopied] = useState(false);
 
   return (
-    <Card style={{ gap: 14, borderColor: "rgba(103, 242, 200, 0.2)", backgroundColor: "rgba(255,255,255,0.035)" }}>
-      <View style={{ flexDirection: "row", gap: 12 }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: theme.colors.accent, fontSize: 11, fontWeight: "900", letterSpacing: 1.6 }}>TOKEN NAME</Text>
-          <View style={{ alignSelf: "flex-start", marginTop: 8, borderWidth: 1, borderColor: "rgba(103, 242, 200, 0.22)", backgroundColor: "rgba(103, 242, 200, 0.08)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 }}>
-            <Text style={{ color: theme.colors.textPrimary, fontWeight: "900" }}>SafeScan</Text>
-          </View>
-        </View>
-        <View>
-          <Text style={{ color: theme.colors.accent, fontSize: 11, fontWeight: "900", letterSpacing: 1.6 }}>TICKER</Text>
-          <View style={{ marginTop: 8, borderWidth: 1, borderColor: "rgba(103, 242, 200, 0.22)", backgroundColor: "rgba(103, 242, 200, 0.08)", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 }}>
-            <Text style={{ color: theme.colors.textPrimary, fontWeight: "900", letterSpacing: 1.2 }}>SQR</Text>
-          </View>
-        </View>
+    <Card style={{ borderLeftWidth: 3, borderLeftColor: colors.primary, borderColor: colors.surfaceBorder, backgroundColor: colors.surface }}>
+      <Text style={{ ...typography.h3 }}>SafeScan Token</Text>
+      <Text style={{ color: colors.primary, fontFamily: fonts.sansSemiBold, fontSize: 34, marginTop: 8 }}>SQR</Text>
+      <Text style={{ ...typography.body, marginTop: 6 }}>Reward tiers and eligibility tracking for SafeScan QR users.</Text>
+
+      <View style={{ marginTop: 16, borderWidth: 1, borderColor: colors.surfaceBorder, borderRadius: 8, backgroundColor: colors.surfaceElevated, padding: 12 }}>
+        <Text style={{ ...typography.label, marginBottom: 6 }}>CONTRACT ADDRESS</Text>
+        <Text style={{ ...typography.mono, fontFamily: fonts.mono }}>{`${tokenAddress.slice(0, 8)}...${tokenAddress.slice(-8)}`}</Text>
       </View>
-      <View>
-        <Text style={{ color: theme.colors.accent, fontSize: 11, fontWeight: "900", letterSpacing: 1.6 }}>ADDRESS</Text>
-        <View style={{ marginTop: 8, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, backgroundColor: "rgba(0,0,0,0.16)", padding: 12 }}>
-          <Text style={{ color: theme.colors.textPrimary, lineHeight: 20 }}>{tokenAddress}</Text>
-        </View>
-      </View>
-      <Button
-        title={copied ? "Copied" : "Copy Token Address"}
-        variant="secondary"
+
+      <Pressable
+        accessibilityRole="button"
         onPress={async () => {
           await Clipboard.setStringAsync(tokenAddress);
           setCopied(true);
           setTimeout(() => setCopied(false), 1600);
         }}
-      />
+        style={({ pressed }) => ({
+          marginTop: 12,
+          borderWidth: 1,
+          borderColor: colors.primary,
+          borderRadius: 999,
+          paddingVertical: 12,
+          alignItems: "center",
+          flexDirection: "row",
+          justifyContent: "center",
+          transform: [{ scale: pressed ? 0.97 : 1 }]
+        })}
+      >
+        <Feather name="copy" size={16} color={colors.primary} style={{ marginRight: 8 }} />
+        <Text style={{ color: colors.primary, fontFamily: fonts.sansSemiBold }}>{copied ? "Copied!" : "Copy Contract"}</Text>
+      </Pressable>
     </Card>
   );
 }

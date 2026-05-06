@@ -6,13 +6,15 @@ export function Input(props: TextInputProps) {
     <TextInput
       placeholderTextColor={theme.colors.muted}
       style={{
-        minHeight: 48,
-        borderRadius: 16,
+        minHeight: 44,
+        borderRadius: 8,
         borderColor: theme.colors.border,
         borderWidth: 1,
         color: theme.colors.textPrimary,
-        backgroundColor: "rgba(255, 255, 255, 0.05)",
-        paddingHorizontal: 14
+        backgroundColor: theme.colors.surfaceElevated,
+        paddingHorizontal: 14,
+        fontFamily: theme.fonts.sans,
+        fontSize: 14
       }}
       {...props}
     />

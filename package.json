@@ -1,0 +1,48 @@
+{
+  "name": "safescan-android",
+  "version": "1.0.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "lint": "expo lint",
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "latest",
+    "@solana-mobile/mobile-wallet-adapter-protocol": "latest",
+    "@solana/web3.js": "latest",
+    "@tanstack/react-query": "latest",
+    "date-fns": "latest",
+    "expo": "~51.0.0",
+    "expo-auth-session": "latest",
+    "expo-camera": "latest",
+    "expo-clipboard": "latest",
+    "expo-font": "latest",
+    "expo-haptics": "latest",
+    "expo-image-picker": "latest",
+    "expo-linear-gradient": "latest",
+    "expo-linking": "latest",
+    "expo-notifications": "latest",
+    "expo-router": "latest",
+    "expo-secure-store": "latest",
+    "expo-web-browser": "latest",
+    "nativewind": "latest",
+    "react": "18.2.0",
+    "react-native": "0.74.0",
+    "react-native-bottom-sheet": "latest",
+    "react-native-gesture-handler": "latest",
+    "react-native-reanimated": "latest",
+    "react-native-safe-area-context": "latest",
+    "react-native-svg": "latest",
+    "tailwindcss": "latest",
+    "zod": "latest",
+    "zustand": "latest"
+  },
+  "devDependencies": {
+    "@types/react": "~18.2.79",
+    "typescript": "~5.3.3"
+  }
+}

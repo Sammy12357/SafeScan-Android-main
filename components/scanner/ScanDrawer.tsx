@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Linking, ScrollView, Text, View } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/ui/Button";
 import { RiskBreakdownPanel } from "@/components/risk/RiskBreakdownPanel";
 import { LoadingSteps } from "@/components/shared/LoadingSteps";
@@ -14,7 +16,25 @@ import { truncateMiddle } from "@/utils/url";
 export function ScanDrawer({ payload, onClear }: { payload: string | null; onClear: () => void }) {
   const analyze = useAnalyze();
   const addScan = useScanStore((state) => state.addScan);
+  const insets = useSafeAreaInsets();
   const [reported, setReported] = useState(false);
+  const reveal = useSharedValue(28);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (!payload) {
+      reveal.value = 28;
+      opacity.value = 0;
+      return;
+    }
+    reveal.value = withTiming(0, { duration: 320 });
+    opacity.value = withTiming(1, { duration: 320 });
+  }, [opacity, payload, reveal]);
+
+  const sheetStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: reveal.value }]
+  }));
 
   if (!payload) return null;
 
@@ -30,8 +50,27 @@ export function ScanDrawer({ payload, onClear }: { payload: string | null; onCle
   };
 
   return (
-    <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, maxHeight: "92%", backgroundColor: "rgba(8, 16, 29, 0.98)", borderTopLeftRadius: result ? 0 : 8, borderTopRightRadius: result ? 0 : 8, borderColor: theme.colors.border, borderWidth: 1, padding: 16, gap: 12 }}>
-      <View style={{ alignSelf: "center", width: 42, height: 4, borderRadius: 999, backgroundColor: theme.colors.border, marginBottom: 2 }} />
+    <Animated.View
+      style={[
+        {
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 20,
+          elevation: 20,
+          backgroundColor: theme.colors.background,
+          borderColor: theme.colors.border,
+          borderWidth: 1,
+          paddingHorizontal: 16,
+          paddingTop: insets.top + 18,
+          paddingBottom: Math.max(insets.bottom, 16) + 16,
+          gap: 12
+        },
+        sheetStyle
+      ]}
+    >
       <ScrollView contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
         <Text style={{ color: theme.colors.accent, fontSize: 11, fontWeight: "900", letterSpacing: 1.5 }}>DECODED PAYLOAD</Text>
         <Text style={{ color: theme.colors.textPrimary, fontSize: 20, fontWeight: "900" }}>QR decoded</Text>
@@ -64,6 +103,6 @@ export function ScanDrawer({ payload, onClear }: { payload: string | null; onCle
           </View>
         )}
       </ScrollView>
-    </View>
+    </Animated.View>
   );
 }

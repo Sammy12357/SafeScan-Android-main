@@ -96,9 +96,12 @@ export async function verifyGoogleToken(token: string) {
   });
 }
 
-export async function logoutSession() {
+export async function logoutSession(sessionOverride?: string | null) {
   try {
-    await apiFetch("/auth/logout", { method: "POST" });
+    await apiFetch("/auth/logout", {
+      method: "POST",
+      headers: sessionOverride ? { Authorization: `Bearer ${sessionOverride}` } : undefined
+    });
   } catch {
     // Local sign-out should still complete if the network or backend is unavailable.
   }

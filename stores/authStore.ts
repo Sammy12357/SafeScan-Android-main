@@ -42,12 +42,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ user: normalizedUser });
   },
   clearAuth: async () => {
+    set({ session: null, user: null });
     await Promise.all([
       deleteSecureValue("safescan_session"),
       deleteSecureValue("safescan_user"),
       deleteSecureValue("safescan_wallet")
     ]);
-    set({ session: null, user: null });
   },
   isAuthenticated: () => Boolean(get().session)
 }));

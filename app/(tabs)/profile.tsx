@@ -22,7 +22,7 @@ const links = [
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, clearAuth } = useAuthStore();
+  const { user, session, clearAuth } = useAuthStore();
   const history = useScanStore((state) => state.history);
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const displayName = profile?.name ?? user?.name ?? "Safe scanner";
@@ -77,9 +77,10 @@ export default function ProfileScreen() {
         title="Sign Out"
         variant="secondary"
         onPress={async () => {
-          await clearAuth();
+          const sessionToRevoke = session;
           router.replace("/auth/google");
-          void logoutSession();
+          await clearAuth();
+          void logoutSession(sessionToRevoke);
         }}
       />
     </ScrollView>

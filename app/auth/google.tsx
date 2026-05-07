@@ -4,7 +4,6 @@ import * as WebBrowser from "expo-web-browser";
 import { Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button } from "@/components/ui/Button";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { config } from "@/constants/config";
 import { theme } from "@/constants/theme";
@@ -70,16 +69,6 @@ export default function GoogleAuthScreen() {
     if (result.type !== "success") setIsSigningIn(false);
   };
 
-  const startDemo = async () => {
-    await setSession("demo-session");
-    await setUser({
-      id: "demo",
-      name: "Safe scanner",
-      email: "demo@safescan.app"
-    });
-    router.replace("/(tabs)/scanner");
-  };
-
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background, justifyContent: "center", paddingHorizontal: 16, paddingTop: insets.top + 28, paddingBottom: Math.max(insets.bottom, 16) + 16 }}>
       <View style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, backgroundColor: theme.colors.surface, padding: 22, gap: 16, ...theme.shadows.panel }}>
@@ -93,7 +82,6 @@ export default function GoogleAuthScreen() {
         <Text style={{ color: theme.colors.textSecondary, fontSize: 12, lineHeight: 18 }}>
           By signing up, you agree to SafeScan's Terms and Privacy Policy.
         </Text>
-        <Button title="Use Demo Mode" variant="secondary" onPress={startDemo} />
       </View>
     </View>
   );

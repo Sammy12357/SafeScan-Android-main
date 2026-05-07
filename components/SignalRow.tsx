@@ -23,15 +23,22 @@ const severityStyles: Record<Severity, { dot: string; badge: string; text: strin
   }
 };
 
-export function SignalRow({ label, severity }: { label: string; severity: Severity }) {
+export function SignalRow({ label, result, severity }: { label: string; result?: string; severity: Severity }) {
   const styles = severityStyles[severity];
 
   return (
     <View className="flex-row items-center gap-3 rounded-web border border-border bg-surface px-4 py-3">
       <View className={`h-2.5 w-2.5 rounded-pill ${styles.dot}`} />
-      <Text className="flex-1 font-ui text-base text-textPrimary" numberOfLines={2}>
-        {label}
-      </Text>
+      <View className="flex-1">
+        <Text className="font-ui text-base text-textPrimary" numberOfLines={2}>
+          {label}
+        </Text>
+        {result ? (
+          <Text className="mt-1 font-ui text-xs text-textSecondary" numberOfLines={2}>
+            {result}
+          </Text>
+        ) : null}
+      </View>
       <View className={`rounded-pill border px-3 py-1 ${styles.badge}`}>
         <Text className={`font-semibold text-xs ${styles.text}`}>{styles.label}</Text>
       </View>

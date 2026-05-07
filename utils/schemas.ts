@@ -40,6 +40,19 @@ const RawSignalSchema = z.object({
   passed: z.boolean().optional()
 });
 
+const MlRiskSchema = z
+  .object({
+    enabled: z.boolean(),
+    score: z.number().min(0).max(100).optional(),
+    label: z.string().optional(),
+    benignProbability: z.number().min(0).max(1).optional(),
+    maliciousProbability: z.number().min(0).max(1).optional(),
+    model: z.string().optional(),
+    inputSource: z.string().optional(),
+    reason: z.string().optional()
+  })
+  .passthrough();
+
 export const SignalSchema = RawSignalSchema.transform((signal) => {
   const label = signal.label ?? signal.check ?? "Signal";
   const result = signal.result ?? label;
@@ -89,7 +102,10 @@ export const AnalyzeResultSchema = z
     counted: z.boolean().optional(),
     scanCount: z.number().optional(),
     payloadType: z.string().optional(),
-    source: z.enum(["backend", "demo-fallback"]).optional()
+    source: z.enum(["backend", "demo-fallback"]).optional(),
+    mlRisk: MlRiskSchema.optional(),
+    ruleScore: z.number().min(0).max(100).optional(),
+    threatType: z.string().optional()
   })
   .transform((result) => {
     const riskScore = result.riskScore ?? result.confidenceScore ?? 0;
@@ -113,7 +129,10 @@ export const AnalyzeResultSchema = z
       counted: result.counted,
       scanCount: result.scanCount,
       payloadType: result.payloadType,
-      source: result.source
+      source: result.source,
+      ...(result.mlRisk ? { mlRisk: result.mlRisk } : {}),
+      ...(result.ruleScore !== undefined ? { ruleScore: result.ruleScore } : {}),
+      ...(result.threatType ? { threatType: result.threatType } : {})
     };
   });
 

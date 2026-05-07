@@ -188,12 +188,20 @@ export default function ScanResultScreen() {
           <Text className="mt-3 text-center font-ui text-base leading-6 text-textSecondary">
             {result.verdictText ?? verdictLabels[result.verdict]}
           </Text>
+          {result.mlRisk?.enabled ? (
+            <View className="mt-4 rounded-web border border-border bg-surface px-4 py-3">
+              <Text className="text-center font-semibold text-xs uppercase tracking-widest text-accent">ML risk distribution</Text>
+              <Text className="mt-2 text-center font-mono text-sm text-textPrimary">
+                {result.mlRisk.score ?? result.riskScore}/100 risk · {Math.round((result.mlRisk.maliciousProbability ?? 0) * 100)}% malicious
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <View className="gap-3">
           <Text className="font-semibold text-xs uppercase tracking-widest text-accent">Signal breakdown</Text>
           {result.signals.length ? (
-            result.signals.map((signal) => <SignalRow key={`${signal.label}-${signal.severity}`} label={signal.label} severity={signal.severity} />)
+            result.signals.map((signal) => <SignalRow key={`${signal.label}-${signal.severity}-${signal.result}`} label={signal.label} result={signal.result} severity={signal.severity} />)
           ) : (
             <Text className="rounded-web border border-border bg-surface px-4 py-3 font-ui text-textSecondary">No risk signals returned.</Text>
           )}

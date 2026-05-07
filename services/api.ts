@@ -1,40 +1,104 @@
-import { z } from "zod";
-import { config } from "@/constants/config";
-import { useAuthStore } from "@/stores/authStore";
+import * as SecureStore from "expo-secure-store";
 
-export const SignalSchema = z.object({
-  check: z.string(),
-  result: z.string(),
-  severity: z.enum(["low", "medium", "high"]),
-  description: z.string(),
-  passed: z.boolean().optional()
-});
+const AUTH_TOKEN_KEY = "auth_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
+const DEFAULT_TIMEOUT_MS = 60000;
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-export const AnalyzeResponseSchema = z.object({
-  url: z.string(),
-  overallRisk: z.enum(["safe", "suspicious", "high"]),
-  confidenceScore: z.number().min(0).max(100),
-  verdict: z.string(),
-  signals: z.array(SignalSchema),
-  scannedAt: z.string(),
-  source: z.enum(["backend", "demo-fallback"]).optional()
-});
+const endpoints = {
+  authVerify: "/auth/verify",
+  authRefresh: "/auth/refresh",
+  authLogout: "/auth/logout",
+  scanAnalyze: "/api/scan",
+  scanHistory: "/api/scan/history",
+  scanReport: "/api/report",
+  userProfile: "/api/user/profile",
+  userDelete: "/api/user",
+  airdropStatus: "/api/airdrop/status",
+  walletStatus: "/api/wallet",
+  walletConnect: "/api/wallet/nonce",
+  walletDisconnect: "/api/wallet",
+  walletNonce: "/api/wallet/nonce",
+  walletVerify: "/api/wallet/verify",
+  referralStats: "/api/referral",
+  reputation: "/api/check-reputation",
+  redirects: "/api/trace-redirects",
+  domain: "/api/check-domain",
+  cryptoPatterns: "/api/check-crypto-patterns"
+} as const;
 
-export type Signal = z.infer<typeof SignalSchema>;
-export type AnalyzeResponse = z.infer<typeof AnalyzeResponseSchema>;
+export interface ApiError extends Error {
+  status: number;
+  body: unknown;
+}
 
-export type UserProfileResponse = {
-  id?: string;
+export class SafeScanApiError extends Error implements ApiError {
+  status: number;
+  body: unknown;
+
+  constructor(status: number, body: unknown) {
+    super(`SafeScan API ${status}`);
+    this.name = "ApiError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
+export type Severity = "low" | "medium" | "high";
+export type RiskLevel = "safe" | "suspicious" | "high";
+export type UserRole = "user" | "admin";
+
+export type Signal = {
+  check: string;
+  result: string;
+  severity: Severity;
+  description: string;
+  passed?: boolean;
+};
+
+export type AnalyzeResult = {
+  url: string;
+  overallRisk: RiskLevel;
+  confidenceScore: number;
+  verdict: string;
+  signals: Signal[];
+  scannedAt: string;
+  source?: "backend" | "demo-fallback";
+  counted?: boolean;
+  scanCount?: number;
+  payloadType?: string;
+};
+
+export type AnalyzeResponse = AnalyzeResult;
+
+export type User = {
+  id: string;
   name: string;
   email: string;
-  role?: "user" | "admin";
+  role?: UserRole;
+  avatarUrl?: string;
+};
+
+export type UserProfile = User & {
   scanCount: number;
   referrals: number;
   tier: string;
   walletConnected: boolean;
 };
 
-export type AirdropStatusResponse = {
+export type UserProfileResponse = UserProfile;
+
+export type ScanHistoryItem = {
+  id: string;
+  url: string;
+  riskScore: number;
+  verdict: string;
+  signals: Signal[];
+  reported: boolean;
+  scannedAt: string;
+};
+
+export type AirdropStatus = {
   scanCount: number;
   referrals: number;
   currentTier: string;
@@ -47,13 +111,17 @@ export type AirdropStatusResponse = {
   nextMilestone: string;
 };
 
-export type ReferralResponse = {
+export type AirdropStatusResponse = AirdropStatus;
+
+export type ReferralStats = {
   code: string;
   link: string;
   referrals: number;
 };
 
-export type WalletStatusResponse = {
+export type ReferralResponse = ReferralStats;
+
+export type WalletStatus = {
   connected: boolean;
   walletAddress?: string | null;
   verified?: boolean;
@@ -66,118 +134,116 @@ export type WalletStatusResponse = {
   };
 };
 
+export type WalletStatusResponse = WalletStatus;
+
 export type WalletNonceResponse = {
   nonce: string;
   message: string;
   expiresAt: string;
 };
 
-type ApiOptions = RequestInit & {
+type TokenPair = {
+  accessToken: string;
+  refreshToken: string;
+};
+
+type RequestOptions = RequestInit & {
+  auth?: boolean;
+  retry?: boolean;
   timeoutMs?: number;
 };
 
-async function apiFetch(path: string, options: ApiOptions = {}) {
+function apiUrl(path: string) {
+  if (!API_BASE_URL) throw new SafeScanApiError(0, { error: "Missing EXPO_PUBLIC_API_BASE_URL" });
+  return `${API_BASE_URL}${path}`;
+}
+
+async function readBody(response: Response) {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+async function saveTokens(tokens: TokenPair) {
+  await Promise.all([
+    SecureStore.setItemAsync(AUTH_TOKEN_KEY, tokens.accessToken),
+    SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokens.refreshToken)
+  ]);
+}
+
+async function clearTokens() {
+  await Promise.all([
+    SecureStore.deleteItemAsync(AUTH_TOKEN_KEY),
+    SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY)
+  ]);
+}
+
+function normalizeAuthResponse(body: unknown): { accessToken: string; refreshToken: string; user: User } {
+  const value = body as {
+    accessToken?: string;
+    refreshToken?: string;
+    session?: string;
+    user?: User;
+  };
+  const accessToken = value.accessToken ?? value.session ?? "";
+  const refreshToken = value.refreshToken ?? accessToken;
+  if (!accessToken || !value.user) throw new SafeScanApiError(500, body);
+  return { accessToken, refreshToken, user: value.user };
+}
+
+async function refreshAccessToken() {
+  const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+  if (!refreshToken) throw new SafeScanApiError(401, { error: "Missing refresh token" });
+
+  const body = await request<TokenPair>(endpoints.authRefresh, {
+    method: "POST",
+    auth: false,
+    retry: false,
+    body: JSON.stringify({ refreshToken })
+  });
+  await saveTokens(body);
+  return body;
+}
+
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? config.analyzeTimeoutMs);
-  const session = useAuthStore.getState().session;
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const headers = new Headers(options.headers);
+
+  headers.set("Content-Type", "application/json");
+  if (options.auth !== false) {
+    const accessToken = await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
+    if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+  }
 
   try {
-    const response = await fetch(`${config.apiBaseUrl}${path}`, {
+    const response = await fetch(apiUrl(path), {
       ...options,
       signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        ...(session ? { Authorization: `Bearer ${session}` } : {}),
-        ...options.headers
-      }
+      headers
     });
 
-    if (!response.ok) {
-      throw new Error(`SafeScan API ${response.status}: ${await response.text()}`);
+    if (response.status === 401 && options.auth !== false && options.retry !== false) {
+      await refreshAccessToken();
+      return request<T>(path, { ...options, retry: false });
     }
 
-    return response.json();
+    const body = await readBody(response);
+    if (!response.ok) throw new SafeScanApiError(response.status, body);
+    return body as T;
   } finally {
     clearTimeout(timeout);
   }
 }
 
-export async function analyzeUrl(url: string): Promise<AnalyzeResponse> {
-  try {
-    const json = await apiFetch("/api/scan", {
-      method: "POST",
-      body: JSON.stringify({ payload: url }),
-      timeoutMs: config.analyzeTimeoutMs
-    });
-    return { ...AnalyzeResponseSchema.parse(json), source: "backend" };
-  } catch {
-    return { ...mockAnalyzeResponse(url), source: "demo-fallback" };
-  }
-}
-
-export async function verifyGoogleToken(token: string) {
-  return apiFetch("/auth/verify", {
-    method: "POST",
-    body: JSON.stringify({ token })
-  });
-}
-
-export async function logoutSession(sessionOverride?: string | null) {
-  try {
-    await apiFetch("/auth/logout", {
-      method: "POST",
-      headers: sessionOverride ? { Authorization: `Bearer ${sessionOverride}` } : undefined
-    });
-  } catch {
-    // Local sign-out should still complete if the network or backend is unavailable.
-  }
-}
-
-export async function fetchProfile(): Promise<UserProfileResponse> {
-  try {
-    return await apiFetch("/api/user/profile", { method: "GET" });
-  } catch {
-    return {
-      name: "Safe scanner",
-      email: "demo@safescan.app",
-      scanCount: 7,
-      referrals: 1,
-      tier: "Referrer",
-      walletConnected: false
-    };
-  }
-}
-
-export async function fetchAirdropStatus(): Promise<AirdropStatusResponse> {
-  try {
-    return await apiFetch("/api/airdrop/status", { method: "GET" });
-  } catch {
-    return {
-      scanCount: 7,
-      referrals: 1,
-      currentTier: "Referrer",
-      walletConnected: false,
-      airdropStatus: "eligible",
-      fraudScore: 0,
-      nextMilestone: "Scan 50 QR codes and invite 3 people to unlock Guardian."
-    };
-  }
-}
-
-export async function reportUrl(url: string, reason: string) {
-  try {
-    return await apiFetch("/api/report", {
-      method: "POST",
-      body: JSON.stringify({ url, reason: normalizeReportReason(reason) })
-    });
-  } catch {
-    return { queued: true, url, reason };
-  }
-}
-
 function normalizeReportReason(reason: string) {
   const normalized = reason.toLowerCase();
-  if (["phishing", "wallet_drain", "malware", "spam", "other"].includes(normalized)) return normalized;
+  const validReasons = ["phishing", "wallet_drain", "malware", "spam", "other"];
+  if (validReasons.includes(normalized)) return normalized;
   if (normalized.includes("wallet")) return "wallet_drain";
   if (normalized.includes("malware")) return "malware";
   if (normalized.includes("spam")) return "spam";
@@ -185,58 +251,203 @@ function normalizeReportReason(reason: string) {
   return "other";
 }
 
+export const api = {
+  auth: {
+    async verifyToken(idToken: string) {
+      const body = await request<unknown>(endpoints.authVerify, {
+        method: "POST",
+        auth: false,
+        body: JSON.stringify({ token: idToken })
+      });
+      const result = normalizeAuthResponse(body);
+      await saveTokens(result);
+      return result;
+    },
+    async refreshToken(refreshToken: string) {
+      const result = await request<TokenPair>(endpoints.authRefresh, {
+        method: "POST",
+        auth: false,
+        retry: false,
+        body: JSON.stringify({ refreshToken })
+      });
+      await saveTokens(result);
+      return result;
+    },
+    async logout(sessionOverride?: string | null) {
+      const headers = new Headers();
+      if (sessionOverride) headers.set("Authorization", `Bearer ${sessionOverride}`);
+      try {
+        await request<void>(endpoints.authLogout, {
+          method: "POST",
+          headers,
+          retry: false
+        });
+      } finally {
+        await clearTokens();
+      }
+    }
+  },
+  scan: {
+    analyze(payload: string) {
+      return request<AnalyzeResult>(endpoints.scanAnalyze, {
+        method: "POST",
+        body: JSON.stringify({ payload })
+      });
+    },
+    history() {
+      return request<ScanHistoryItem[]>(endpoints.scanHistory);
+    },
+    async report(scanId: string, reason: string) {
+      await request(endpoints.scanReport, {
+        method: "POST",
+        body: JSON.stringify({ url: scanId, reason: normalizeReportReason(reason) })
+      });
+    }
+  },
+  user: {
+    profile() {
+      return request<UserProfile>(endpoints.userProfile);
+    },
+    async delete() {
+      await request(endpoints.userDelete, { method: "DELETE" });
+    }
+  },
+  airdrop: {
+    status() {
+      return request<AirdropStatus>(endpoints.airdropStatus);
+    }
+  },
+  wallet: {
+    async connect(publicKey: string) {
+      await request(endpoints.walletConnect, {
+        method: "POST",
+        body: JSON.stringify({ walletAddress: publicKey })
+      });
+    },
+    status() {
+      return request<WalletStatus>(endpoints.walletStatus);
+    },
+    nonce(walletAddress: string) {
+      return request<WalletNonceResponse>(endpoints.walletNonce, {
+        method: "POST",
+        body: JSON.stringify({ walletAddress })
+      });
+    },
+    verify(walletAddress: string, signature: string) {
+      return request(endpoints.walletVerify, {
+        method: "POST",
+        body: JSON.stringify({ walletAddress, signature })
+      });
+    },
+    disconnect() {
+      return request(endpoints.walletDisconnect, { method: "DELETE" });
+    }
+  },
+  referral: {
+    stats() {
+      return request<ReferralStats>(endpoints.referralStats);
+    }
+  },
+  checks: {
+    reputation(url: string) {
+      return request(endpoints.reputation, {
+        method: "POST",
+        body: JSON.stringify({ url })
+      });
+    },
+    redirects(url: string) {
+      return request(endpoints.redirects, {
+        method: "POST",
+        body: JSON.stringify({ url })
+      });
+    },
+    domain(url: string) {
+      return request(endpoints.domain, {
+        method: "POST",
+        body: JSON.stringify({ url })
+      });
+    },
+    cryptoPatterns(url: string) {
+      return request(endpoints.cryptoPatterns, {
+        method: "POST",
+        body: JSON.stringify({ url })
+      });
+    }
+  }
+};
+
+export async function analyzeUrl(payload: string): Promise<AnalyzeResponse> {
+  try {
+    const result = await api.scan.analyze(payload);
+    return { ...result, source: "backend" };
+  } catch {
+    return { ...mockAnalyzeResponse(payload), source: "demo-fallback" };
+  }
+}
+
+export async function verifyGoogleToken(token: string) {
+  const result = await api.auth.verifyToken(token);
+  return { session: result.accessToken, user: result.user };
+}
+
+export function logoutSession(sessionOverride?: string | null) {
+  return api.auth.logout(sessionOverride);
+}
+
+export async function fetchProfile(): Promise<UserProfileResponse> {
+  return api.user.profile();
+}
+
+export async function fetchAirdropStatus(): Promise<AirdropStatusResponse> {
+  return api.airdrop.status();
+}
+
+export async function reportUrl(url: string, reason: string) {
+  try {
+    await request(endpoints.scanReport, {
+      method: "POST",
+      body: JSON.stringify({ url, reason: normalizeReportReason(reason) })
+    });
+    return { queued: false, url, reason };
+  } catch {
+    return { queued: true, url, reason };
+  }
+}
+
 export function checkReputation(url: string) {
-  return apiFetch("/api/check-reputation", {
-    method: "POST",
-    body: JSON.stringify({ url })
-  });
+  return api.checks.reputation(url);
 }
 
 export function traceRedirects(url: string) {
-  return apiFetch("/api/trace-redirects", {
-    method: "POST",
-    body: JSON.stringify({ url })
-  });
+  return api.checks.redirects(url);
 }
 
 export function checkDomain(url: string) {
-  return apiFetch("/api/check-domain", {
-    method: "POST",
-    body: JSON.stringify({ url })
-  });
+  return api.checks.domain(url);
 }
 
 export function checkCryptoPatterns(url: string) {
-  return apiFetch("/api/check-crypto-patterns", {
-    method: "POST",
-    body: JSON.stringify({ url })
-  });
+  return api.checks.cryptoPatterns(url);
 }
 
 export function fetchWalletStatus() {
-  return apiFetch("/api/wallet", { method: "GET" }) as Promise<WalletStatusResponse>;
+  return api.wallet.status();
 }
 
 export function disconnectWallet() {
-  return apiFetch("/api/wallet", { method: "DELETE" });
+  return api.wallet.disconnect();
 }
 
 export function fetchReferralStatus() {
-  return apiFetch("/api/referral", { method: "GET" }) as Promise<ReferralResponse>;
+  return api.referral.stats();
 }
 
 export function requestWalletNonce(walletAddress: string) {
-  return apiFetch("/api/wallet/nonce", {
-    method: "POST",
-    body: JSON.stringify({ walletAddress })
-  }) as Promise<WalletNonceResponse>;
+  return api.wallet.nonce(walletAddress);
 }
 
 export function verifyWallet(walletAddress: string, signature: string) {
-  return apiFetch("/api/wallet/verify", {
-    method: "POST",
-    body: JSON.stringify({ walletAddress, signature })
-  });
+  return api.wallet.verify(walletAddress, signature);
 }
 
 export function mockAnalyzeResponse(input: string): AnalyzeResponse {

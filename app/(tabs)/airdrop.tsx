@@ -28,6 +28,12 @@ export default function AirdropScreen() {
         </Text>
       </View>
 
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        {tiers.map((tier) => (
+          <TierCard key={tier.id} tier={tier} unlocked={scanCount >= tier.scanThreshold && referrals >= tier.referralThreshold} compact />
+        ))}
+      </View>
+
       <TokenInfoCard />
 
       <View style={{ borderWidth: 1, borderColor: "rgba(103, 242, 200, 0.2)", borderRadius: 18, backgroundColor: "rgba(255,255,255,0.035)", padding: 18, gap: 16 }}>
@@ -60,10 +66,6 @@ export default function AirdropScreen() {
         <Text style={{ color: theme.colors.textSecondary, lineHeight: 22 }}>Scan QR codes to build your airdrop progress.</Text>
         <Button title="Scan QR" onPress={() => router.push("/(tabs)/scanner")} />
       </Card>
-
-      {tiers.map((tier) => (
-        <TierCard key={tier.id} tier={tier} unlocked={scanCount >= tier.scanThreshold && referrals >= tier.referralThreshold} />
-      ))}
     </ScrollView>
   );
 }

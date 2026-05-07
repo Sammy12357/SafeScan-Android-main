@@ -6,12 +6,14 @@ import type { tiers } from "@/constants/tiers";
 
 type Tier = (typeof tiers)[number];
 
-export function TierCard({ tier, unlocked }: { tier: Tier; unlocked: boolean }) {
+export function TierCard({ tier, unlocked, compact = false }: { tier: Tier; unlocked: boolean; compact?: boolean }) {
   return (
     <Card
       style={{
         opacity: unlocked ? 1 : 0.5,
-        minHeight: 170,
+        minHeight: compact ? 116 : 170,
+        flex: compact ? 1 : undefined,
+        padding: compact ? 10 : 22,
         borderColor: unlocked ? colors.primary : colors.surfaceBorder,
         backgroundColor: unlocked ? colors.primaryDim : colors.surface,
         position: "relative",
@@ -20,14 +22,16 @@ export function TierCard({ tier, unlocked }: { tier: Tier; unlocked: boolean }) 
     >
       {!unlocked ? (
         <View style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", opacity: 0.2 }}>
-          <Feather name="lock" size={54} color={colors.textPrimary} />
+          <Feather name="lock" size={compact ? 30 : 54} color={colors.textPrimary} />
         </View>
       ) : null}
-      <Text style={{ ...typography.tierRank }}>{tier.rank.toUpperCase()}</Text>
-      <Text style={{ ...typography.h3, fontSize: 22, marginTop: 8 }}>{tier.name}</Text>
-      <Text style={{ ...typography.body, marginTop: 8 }}>Scan {tier.scanThreshold} QR codes and invite {tier.referralThreshold} user{tier.referralThreshold === 1 ? "" : "s"}.</Text>
-      <View style={{ alignSelf: "flex-start", marginTop: "auto", borderRadius: 999, backgroundColor: colors.primaryDim, borderWidth: 1, borderColor: colors.primary, paddingHorizontal: 12, paddingVertical: 9 }}>
-        <Text style={{ ...typography.tierReward }}>{tier.reward.toUpperCase()}</Text>
+      <Text style={{ ...typography.tierRank, fontSize: compact ? 10 : 13, letterSpacing: compact ? 1.2 : 2.1 }}>{tier.rank.toUpperCase()}</Text>
+      <Text style={{ ...typography.h3, fontSize: compact ? 15 : 22, marginTop: compact ? 6 : 8 }}>{tier.name}</Text>
+      {!compact ? (
+        <Text style={{ ...typography.body, marginTop: 8 }}>Scan {tier.scanThreshold} QR codes and invite {tier.referralThreshold} user{tier.referralThreshold === 1 ? "" : "s"}.</Text>
+      ) : null}
+      <View style={{ alignSelf: "flex-start", marginTop: "auto", borderRadius: 999, backgroundColor: colors.primaryDim, borderWidth: 1, borderColor: colors.primary, paddingHorizontal: compact ? 7 : 12, paddingVertical: compact ? 6 : 9 }}>
+        <Text style={{ ...typography.tierReward, fontSize: compact ? 9 : 12 }}>{tier.reward.toUpperCase()}</Text>
       </View>
     </Card>
   );

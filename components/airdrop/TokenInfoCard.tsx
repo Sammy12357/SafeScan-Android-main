@@ -14,7 +14,6 @@ export function TokenInfoCard() {
     <Card style={{ borderLeftWidth: 3, borderLeftColor: colors.primary, borderColor: colors.surfaceBorder, backgroundColor: colors.surface }}>
       <Text style={{ ...typography.h3 }}>SafeScan Token</Text>
       <Text style={{ color: colors.primary, fontFamily: fonts.sansSemiBold, fontSize: 34, marginTop: 8 }}>SQR</Text>
-      <Text style={{ ...typography.body, marginTop: 6 }}>Reward tiers and eligibility tracking for SafeScan QR users.</Text>
 
       <View style={{ marginTop: 16, borderWidth: 1, borderColor: colors.surfaceBorder, borderRadius: 8, backgroundColor: colors.surfaceElevated, padding: 12 }}>
         <Text style={{ ...typography.eyebrow, fontSize: 11, marginBottom: 6 }}>CONTRACT ADDRESS</Text>

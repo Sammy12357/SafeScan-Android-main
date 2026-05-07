@@ -8,6 +8,7 @@ const REFRESH_TOKEN_KEY = "refresh_token";
 
 type AuthState = {
   user: User | null;
+  walletAddress: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -18,10 +19,12 @@ type AuthStore = AuthState & {
   logout: () => Promise<void>;
   hydrateFromStorage: () => Promise<void>;
   setUser: (user: User) => void;
+  setWalletAddress: (walletAddress: string | null) => void;
 };
 
 const initialState: AuthState = {
   user: null,
+  walletAddress: null,
   isAuthenticated: false,
   isLoading: true,
   error: null
@@ -44,6 +47,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       setApiTokens({ accessToken: result.accessToken, refreshToken: result.refreshToken });
       set({
         user: normalizeUser(result.user),
+        walletAddress: null,
         isAuthenticated: true,
         isLoading: false,
         error: null
@@ -83,6 +87,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const profile = await api.user.profile();
       set({
         user: normalizeUser(profile),
+        walletAddress: profile.walletAddress ?? null,
         isAuthenticated: true,
         isLoading: false,
         error: null
@@ -93,5 +98,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
   setUser: (user) => {
     set({ user: normalizeUser(user) });
+  },
+  setWalletAddress: (walletAddress) => {
+    set({ walletAddress });
   }
 }));

@@ -23,6 +23,29 @@ export const AnalyzeResponseSchema = z.object({
 export type Signal = z.infer<typeof SignalSchema>;
 export type AnalyzeResponse = z.infer<typeof AnalyzeResponseSchema>;
 
+export type UserProfileResponse = {
+  id?: string;
+  name: string;
+  email: string;
+  role?: "user" | "admin";
+  scanCount: number;
+  referrals: number;
+  tier: string;
+  walletConnected: boolean;
+};
+
+export type AirdropStatusResponse = {
+  scanCount: number;
+  referrals: number;
+  currentTier: string;
+  walletConnected: boolean;
+  walletAddress?: string | null;
+  airdropStatus: string;
+  fraudScore: number;
+  referralCode?: string | null;
+  nextMilestone: string;
+};
+
 type ApiOptions = RequestInit & {
   timeoutMs?: number;
 };
@@ -81,7 +104,7 @@ export async function logoutSession() {
   }
 }
 
-export async function fetchProfile() {
+export async function fetchProfile(): Promise<UserProfileResponse> {
   try {
     return await apiFetch("/api/user/profile", { method: "GET" });
   } catch {
@@ -90,12 +113,13 @@ export async function fetchProfile() {
       email: "demo@safescan.app",
       scanCount: 7,
       referrals: 1,
-      tier: "Referrer"
+      tier: "Referrer",
+      walletConnected: false
     };
   }
 }
 
-export async function fetchAirdropStatus() {
+export async function fetchAirdropStatus(): Promise<AirdropStatusResponse> {
   try {
     return await apiFetch("/api/airdrop/status", { method: "GET" });
   } catch {
@@ -104,6 +128,8 @@ export async function fetchAirdropStatus() {
       referrals: 1,
       currentTier: "Referrer",
       walletConnected: false,
+      airdropStatus: "eligible",
+      fraudScore: 0,
       nextMilestone: "Scan 50 QR codes and invite 3 people to unlock Guardian."
     };
   }
@@ -118,6 +144,42 @@ export async function reportUrl(url: string, reason: string) {
   } catch {
     return { queued: true, url, reason };
   }
+}
+
+export function checkReputation(url: string) {
+  return apiFetch("/api/check-reputation", {
+    method: "POST",
+    body: JSON.stringify({ url })
+  });
+}
+
+export function traceRedirects(url: string) {
+  return apiFetch("/api/trace-redirects", {
+    method: "POST",
+    body: JSON.stringify({ url })
+  });
+}
+
+export function checkDomain(url: string) {
+  return apiFetch("/api/check-domain", {
+    method: "POST",
+    body: JSON.stringify({ url })
+  });
+}
+
+export function checkCryptoPatterns(url: string) {
+  return apiFetch("/api/check-crypto-patterns", {
+    method: "POST",
+    body: JSON.stringify({ url })
+  });
+}
+
+export function fetchWalletStatus() {
+  return apiFetch("/api/wallet", { method: "GET" });
+}
+
+export function disconnectWallet() {
+  return apiFetch("/api/wallet", { method: "DELETE" });
 }
 
 export function mockAnalyzeResponse(input: string): AnalyzeResponse {

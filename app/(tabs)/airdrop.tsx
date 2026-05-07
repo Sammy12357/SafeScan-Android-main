@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,14 +10,21 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { tiers } from "@/constants/tiers";
 import { theme } from "@/constants/theme";
+import { fetchAirdropStatus, type AirdropStatusResponse } from "@/services/api";
 import { useScanStore } from "@/stores/scanStore";
 
 export default function AirdropScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const scanCount = useScanStore((state) => state.history.length);
-  const referrals = 0;
-  const currentTier = scanCount >= 50 && referrals >= 3 ? "Guardian" : scanCount >= 5 && referrals >= 1 ? "Referrer" : scanCount >= 5 ? "Scanner" : "Pending";
+  const localScanCount = useScanStore((state) => state.history.length);
+  const [airdropStatus, setAirdropStatus] = useState<AirdropStatusResponse | null>(null);
+  const scanCount = airdropStatus?.scanCount ?? localScanCount;
+  const referrals = airdropStatus?.referrals ?? 0;
+  const currentTier = airdropStatus?.currentTier ?? (scanCount >= 50 && referrals >= 3 ? "Guardian" : scanCount >= 5 && referrals >= 1 ? "Referrer" : scanCount >= 5 ? "Scanner" : "Pending");
+
+  useEffect(() => {
+    fetchAirdropStatus().then(setAirdropStatus).catch(() => undefined);
+  }, []);
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.colors.background }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: insets.top + 28, gap: 18, paddingBottom: Math.max(insets.bottom, 20) + 36 }}>
@@ -24,7 +32,7 @@ export default function AirdropScreen() {
         <Text style={{ ...theme.typography.eyebrow }}>COMMUNITY AIRDROP</Text>
         <Text style={{ color: theme.colors.textPrimary, fontSize: 30, fontFamily: theme.fonts.sansSemiBold }}>Register for Airdrop</Text>
         <Text style={{ color: theme.colors.textSecondary, lineHeight: 22 }}>
-          Scan QR codes, invite users, and connect a wallet to prepare for SQR token eligibility.
+          {airdropStatus?.nextMilestone ?? "Scan QR codes, invite users, and connect a wallet to prepare for SQR token eligibility."}
         </Text>
       </View>
 

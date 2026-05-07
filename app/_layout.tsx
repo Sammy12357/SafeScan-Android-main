@@ -43,8 +43,11 @@ export default function RootLayout() {
   useEffect(() => {
     if (isLoading) return;
     const inTabs = segments[0] === "(tabs)";
-    if (inTabs && !isAuthenticated()) router.replace("/auth/google");
-    if (!inTabs && isAuthenticated() && segments[0] !== "scan-result") router.replace("/(tabs)/scanner");
+    const inAuth = segments[0] === "auth";
+    const inScanResult = segments[0] === "scan-result";
+    const authenticated = isAuthenticated();
+    if (!authenticated && !inAuth) router.replace("/auth/google");
+    if (authenticated && !inTabs && !inScanResult) router.replace("/(tabs)/scanner");
   }, [isLoading, isAuthenticated, router, segments]);
 
   if (!fontsLoaded) {

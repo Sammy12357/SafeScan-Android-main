@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { RiskBreakdownPanel } from "@/components/risk/RiskBreakdownPanel";
 import { theme } from "@/constants/theme";
 import type { AnalyzeResponse } from "@/services/api";
+import { useScanStore } from "@/stores/scanStore";
 
 const demoResult: AnalyzeResponse = {
   scanId: "demo-risk-result",
@@ -29,6 +30,7 @@ const demoResult: AnalyzeResponse = {
 export default function ScanResultScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const result = useScanStore((state) => state.history.find((scan) => scan.id === id) ?? state.currentScan ?? demoResult);
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.colors.background }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: insets.top + 28, paddingBottom: Math.max(insets.bottom, 16) + 28, gap: 16 }}>
@@ -37,7 +39,7 @@ export default function ScanResultScreen() {
         <Text style={{ color: theme.colors.textPrimary, fontSize: 30, fontFamily: theme.fonts.sansSemiBold }}>Verdict detail</Text>
         <Text style={{ color: theme.colors.textSecondary }}>Result ID: {id}</Text>
       </View>
-      <RiskBreakdownPanel result={demoResult} />
+      <RiskBreakdownPanel result={result} />
     </ScrollView>
   );
 }

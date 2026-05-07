@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
+    "@gorhom/bottom-sheet": "^5.2.13",
     "@solana/web3.js": "latest",
     "@tanstack/react-query": "latest",
     "babel-preset-expo": "~54.0.10",

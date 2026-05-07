@@ -73,6 +73,14 @@ export async function verifyGoogleToken(token: string) {
   });
 }
 
+export async function logoutSession() {
+  try {
+    await apiFetch("/auth/logout", { method: "POST" });
+  } catch {
+    // Local sign-out should still complete if the network or backend is unavailable.
+  }
+}
+
 export async function fetchProfile() {
   try {
     return await apiFetch("/api/user/profile", { method: "GET" });

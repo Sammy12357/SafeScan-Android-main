@@ -1,15 +1,70 @@
+import { useEffect, useState } from "react";
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
 import { Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/ui/Button";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { config } from "@/constants/config";
 import { theme } from "@/constants/theme";
+import { verifyGoogleToken } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function GoogleAuthScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { setSession, setUser } = useAuthStore();
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    webClientId: config.googleWebClientId || undefined,
+    androidClientId: config.googleAndroidClientId || undefined,
+    scopes: ["openid", "profile", "email"],
+    selectAccount: true
+  });
+
+  useEffect(() => {
+    const finishGoogleSignIn = async () => {
+      if (response?.type !== "success") {
+        if (response?.type === "error") setAuthError("Google sign-in did not complete. Please try again.");
+        return;
+      }
+
+      const idToken = response.params.id_token;
+      if (!idToken) {
+        setAuthError("Google did not return an ID token. Check the OAuth client configuration.");
+        setIsSigningIn(false);
+        return;
+      }
+
+      try {
+        const result = await verifyGoogleToken(idToken);
+        await setSession(result.session);
+        await setUser(result.user);
+        router.replace("/(tabs)/scanner");
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : "SafeScan sign-in failed.");
+      } finally {
+        setIsSigningIn(false);
+      }
+    };
+
+    finishGoogleSignIn();
+  }, [response, router, setSession, setUser]);
+
+  const startGoogleSignIn = async () => {
+    setAuthError("");
+    if (!config.googleWebClientId && !config.googleAndroidClientId) {
+      setAuthError("Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID or EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID to .env, then restart Expo.");
+      return;
+    }
+    setIsSigningIn(true);
+    const result = await promptAsync();
+    if (result.type !== "success") setIsSigningIn(false);
+  };
 
   const startDemo = async () => {
     await setSession("demo-session");
@@ -27,9 +82,10 @@ export default function GoogleAuthScreen() {
         <Text style={{ color: theme.colors.accent, fontSize: 12, fontFamily: theme.fonts.sansSemiBold, letterSpacing: 1.8 }}>SAFESCAN QR</Text>
         <Text style={{ color: theme.colors.textPrimary, fontSize: 34, fontFamily: theme.fonts.sansSemiBold, lineHeight: 38 }}>Continue to SafeScan</Text>
         <Text style={{ color: theme.colors.textSecondary, lineHeight: 22 }}>
-          Use demo mode in Expo Go to preview the full SafeScan QR mobile flow. Google OAuth can be connected once the Android client ID is configured.
+          Sign in with Google to connect the app to the live SafeScan backend, or use demo mode for a local preview.
         </Text>
-        <GoogleSignInButton onPress={startDemo} />
+        <GoogleSignInButton onPress={startGoogleSignIn} disabled={!request || isSigningIn} />
+        {authError ? <Text style={{ color: theme.colors.danger, fontSize: 12, lineHeight: 18 }}>{authError}</Text> : null}
         <Text style={{ color: theme.colors.textSecondary, fontSize: 12, lineHeight: 18 }}>
           By signing up, you agree to SafeScan's Terms and Privacy Policy.
         </Text>

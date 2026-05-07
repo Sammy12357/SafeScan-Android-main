@@ -1,10 +1,12 @@
 import { Linking, Pressable, ScrollView, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/ui/Button";
 import { ReferralCard } from "@/components/shared/ReferralCard";
 import { WalletConnect } from "@/components/wallet/WalletConnect";
 import { useAuthStore } from "@/stores/authStore";
 import { useScanStore } from "@/stores/scanStore";
+import { logoutSession } from "@/services/api";
 import { theme } from "@/constants/theme";
 
 const links = [
@@ -17,6 +19,7 @@ const links = [
 ] as const;
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, clearAuth } = useAuthStore();
   const history = useScanStore((state) => state.history);
@@ -60,7 +63,15 @@ export default function ProfileScreen() {
         ))}
       </View>
 
-      <Button title="Sign Out" variant="secondary" onPress={clearAuth} />
+      <Button
+        title="Sign Out"
+        variant="secondary"
+        onPress={async () => {
+          await logoutSession();
+          await clearAuth();
+          router.replace("/auth/google");
+        }}
+      />
     </ScrollView>
   );
 }

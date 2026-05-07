@@ -57,8 +57,12 @@ export default function GoogleAuthScreen() {
 
   const startGoogleSignIn = async () => {
     setAuthError("");
-    if (!config.googleWebClientId && !config.googleAndroidClientId) {
-      setAuthError("Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID or EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID to .env, then restart Expo.");
+    if (!config.hasGoogleClientId) {
+      setAuthError("Google sign-in needs a real OAuth client ID in .env. Replace YOUR_GOOGLE_WEB_CLIENT_ID, then restart Expo with --clear.");
+      return;
+    }
+    if (!request) {
+      setAuthError("Google sign-in is still loading. Try again in a moment.");
       return;
     }
     setIsSigningIn(true);
@@ -84,7 +88,7 @@ export default function GoogleAuthScreen() {
         <Text style={{ color: theme.colors.textSecondary, lineHeight: 22 }}>
           Sign in with Google to connect the app to the live SafeScan backend, or use demo mode for a local preview.
         </Text>
-        <GoogleSignInButton onPress={startGoogleSignIn} disabled={!request || isSigningIn} />
+        <GoogleSignInButton onPress={startGoogleSignIn} disabled={isSigningIn} />
         {authError ? <Text style={{ color: theme.colors.danger, fontSize: 12, lineHeight: 18 }}>{authError}</Text> : null}
         <Text style={{ color: theme.colors.textSecondary, fontSize: 12, lineHeight: 18 }}>
           By signing up, you agree to SafeScan's Terms and Privacy Policy.

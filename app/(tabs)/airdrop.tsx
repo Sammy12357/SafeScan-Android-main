@@ -18,7 +18,7 @@ export default function AirdropScreen() {
     <ScrollView style={{ flex: 1, backgroundColor: theme.colors.background }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: insets.top + 28, gap: 18, paddingBottom: Math.max(insets.bottom, 20) + 36 }}>
       <View style={{ gap: 8 }}>
         <Text style={{ ...theme.typography.eyebrow }}>COMMUNITY AIRDROP</Text>
-        <Text style={{ color: theme.colors.textPrimary, fontSize: 30, fontFamily: theme.fonts.sansSemiBold }}>Register for SafeScan QR tiers</Text>
+        <Text style={{ color: theme.colors.textPrimary, fontSize: 30, fontFamily: theme.fonts.sansSemiBold }}>Register for Airdrop</Text>
         <Text style={{ color: theme.colors.textSecondary, lineHeight: 22 }}>
           Scan QR codes, invite users, and connect a wallet to prepare for SQR token eligibility.
         </Text>

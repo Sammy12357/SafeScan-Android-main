@@ -1,4 +1,36 @@
 import * as SecureStore from "expo-secure-store";
+import { z } from "zod";
+import {
+  AirdropStatusSchema,
+  AnalyzeResultSchema,
+  AuthResponseSchema,
+  EmptyResponseSchema,
+  ReferralStatsSchema,
+  ReportResponseSchema,
+  ScanHistoryItemSchema,
+  TokenPairSchema,
+  UnknownResponseSchema,
+  UserProfileSchema,
+  WalletConnectResponseSchema,
+  WalletNonceResponseSchema,
+  WalletStatusSchema,
+  type AirdropStatus,
+  type AirdropStatusResponse,
+  type AnalyzeResponse,
+  type AnalyzeResult,
+  type AuthResponse,
+  type ReferralResponse,
+  type ReferralStats,
+  type ScanHistoryItem,
+  type Signal,
+  type TokenPair,
+  type User,
+  type UserProfile,
+  type UserProfileResponse,
+  type WalletNonceResponse,
+  type WalletStatus,
+  type WalletStatusResponse
+} from "@/utils/schemas";
 
 const AUTH_TOKEN_KEY = "auth_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
@@ -44,107 +76,22 @@ export class SafeScanApiError extends Error implements ApiError {
   }
 }
 
-export type Severity = "low" | "medium" | "high";
-export type RiskLevel = "safe" | "suspicious" | "high";
-export type UserRole = "user" | "admin";
-
-export type Signal = {
-  check: string;
-  result: string;
-  severity: Severity;
-  description: string;
-  passed?: boolean;
-};
-
-export type AnalyzeResult = {
-  url: string;
-  overallRisk: RiskLevel;
-  confidenceScore: number;
-  verdict: string;
-  signals: Signal[];
-  scannedAt: string;
-  source?: "backend" | "demo-fallback";
-  counted?: boolean;
-  scanCount?: number;
-  payloadType?: string;
-};
-
-export type AnalyzeResponse = AnalyzeResult;
-
-export type User = {
-  id: string;
-  name: string;
-  email: string;
-  role?: UserRole;
-  avatarUrl?: string;
-};
-
-export type UserProfile = User & {
-  scanCount: number;
-  referrals: number;
-  tier: string;
-  walletConnected: boolean;
-};
-
-export type UserProfileResponse = UserProfile;
-
-export type ScanHistoryItem = {
-  id: string;
-  url: string;
-  riskScore: number;
-  verdict: string;
-  signals: Signal[];
-  reported: boolean;
-  scannedAt: string;
-};
-
-export type AirdropStatus = {
-  scanCount: number;
-  referrals: number;
-  currentTier: string;
-  walletConnected: boolean;
-  walletAddress?: string | null;
-  airdropStatus: string;
-  fraudScore: number;
-  referralCode?: string | null;
-  referralLink?: string | null;
-  nextMilestone: string;
-};
-
-export type AirdropStatusResponse = AirdropStatus;
-
-export type ReferralStats = {
-  code: string;
-  link: string;
-  referrals: number;
-};
-
-export type ReferralResponse = ReferralStats;
-
-export type WalletStatus = {
-  connected: boolean;
-  walletAddress?: string | null;
-  verified?: boolean;
-  connectedAt?: string;
-  onchain?: {
-    solBalance?: number | null;
-    txCount?: number | null;
-    walletAgeDays?: number | null;
-    verifiedAt?: string | null;
-  };
-};
-
-export type WalletStatusResponse = WalletStatus;
-
-export type WalletNonceResponse = {
-  nonce: string;
-  message: string;
-  expiresAt: string;
-};
-
-type TokenPair = {
-  accessToken: string;
-  refreshToken: string;
+export type {
+  AirdropStatus,
+  AirdropStatusResponse,
+  AnalyzeResponse,
+  AnalyzeResult,
+  AuthResponse,
+  ReferralResponse,
+  ReferralStats,
+  ScanHistoryItem,
+  Signal,
+  User,
+  UserProfile,
+  UserProfileResponse,
+  WalletNonceResponse,
+  WalletStatus,
+  WalletStatusResponse
 };
 
 type RequestOptions = RequestInit & {
@@ -182,34 +129,31 @@ async function clearTokens() {
   ]);
 }
 
-function normalizeAuthResponse(body: unknown): { accessToken: string; refreshToken: string; user: User } {
-  const value = body as {
-    accessToken?: string;
-    refreshToken?: string;
-    session?: string;
-    user?: User;
-  };
-  const accessToken = value.accessToken ?? value.session ?? "";
-  const refreshToken = value.refreshToken ?? accessToken;
-  if (!accessToken || !value.user) throw new SafeScanApiError(500, body);
-  return { accessToken, refreshToken, user: value.user };
+function parseResponse<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, body: unknown): T {
+  try {
+    return schema.parse(body);
+  } catch (error) {
+    if (error instanceof z.ZodError) throw new SafeScanApiError(422, error.flatten());
+    throw error;
+  }
 }
 
 async function refreshAccessToken() {
   const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
   if (!refreshToken) throw new SafeScanApiError(401, { error: "Missing refresh token" });
 
-  const body = await request<TokenPair>(endpoints.authRefresh, {
+  const body = await request(endpoints.authRefresh, {
     method: "POST",
     auth: false,
     retry: false,
     body: JSON.stringify({ refreshToken })
   });
-  await saveTokens(body);
-  return body;
+  const tokens = parseResponse(TokenPairSchema, body);
+  await saveTokens(tokens);
+  return tokens;
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+async function request(path: string, options: RequestOptions = {}): Promise<unknown> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   const headers = new Headers(options.headers);
@@ -229,12 +173,12 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
     if (response.status === 401 && options.auth !== false && options.retry !== false) {
       await refreshAccessToken();
-      return request<T>(path, { ...options, retry: false });
+      return request(path, { ...options, retry: false });
     }
 
     const body = await readBody(response);
     if (!response.ok) throw new SafeScanApiError(response.status, body);
-    return body as T;
+    return body;
   } finally {
     clearTimeout(timeout);
   }
@@ -254,22 +198,23 @@ function normalizeReportReason(reason: string) {
 export const api = {
   auth: {
     async verifyToken(idToken: string) {
-      const body = await request<unknown>(endpoints.authVerify, {
+      const body = await request(endpoints.authVerify, {
         method: "POST",
         auth: false,
         body: JSON.stringify({ token: idToken })
       });
-      const result = normalizeAuthResponse(body);
+      const result = parseResponse(AuthResponseSchema, body);
       await saveTokens(result);
       return result;
     },
     async refreshToken(refreshToken: string) {
-      const result = await request<TokenPair>(endpoints.authRefresh, {
+      const body = await request(endpoints.authRefresh, {
         method: "POST",
         auth: false,
         retry: false,
         body: JSON.stringify({ refreshToken })
       });
+      const result = parseResponse(TokenPairSchema, body);
       await saveTokens(result);
       return result;
     },
@@ -277,11 +222,12 @@ export const api = {
       const headers = new Headers();
       if (sessionOverride) headers.set("Authorization", `Bearer ${sessionOverride}`);
       try {
-        await request<void>(endpoints.authLogout, {
+        const body = await request(endpoints.authLogout, {
           method: "POST",
           headers,
           retry: false
         });
+        parseResponse(EmptyResponseSchema, body);
       } finally {
         await clearTokens();
       }
@@ -289,63 +235,66 @@ export const api = {
   },
   scan: {
     analyze(payload: string) {
-      return request<AnalyzeResult>(endpoints.scanAnalyze, {
+      return request(endpoints.scanAnalyze, {
         method: "POST",
         body: JSON.stringify({ payload })
-      });
+      }).then((body) => parseResponse(AnalyzeResultSchema, body));
     },
     history() {
-      return request<ScanHistoryItem[]>(endpoints.scanHistory);
+      return request(endpoints.scanHistory).then((body) => parseResponse(z.array(ScanHistoryItemSchema), body));
     },
     async report(scanId: string, reason: string) {
-      await request(endpoints.scanReport, {
+      const body = await request(endpoints.scanReport, {
         method: "POST",
         body: JSON.stringify({ url: scanId, reason: normalizeReportReason(reason) })
       });
+      parseResponse(ReportResponseSchema, body);
     }
   },
   user: {
     profile() {
-      return request<UserProfile>(endpoints.userProfile);
+      return request(endpoints.userProfile).then((body) => parseResponse(UserProfileSchema, body));
     },
     async delete() {
-      await request(endpoints.userDelete, { method: "DELETE" });
+      const body = await request(endpoints.userDelete, { method: "DELETE" });
+      parseResponse(EmptyResponseSchema, body);
     }
   },
   airdrop: {
     status() {
-      return request<AirdropStatus>(endpoints.airdropStatus);
+      return request(endpoints.airdropStatus).then((body) => parseResponse(AirdropStatusSchema, body));
     }
   },
   wallet: {
     async connect(publicKey: string) {
-      await request(endpoints.walletConnect, {
+      const body = await request(endpoints.walletConnect, {
         method: "POST",
         body: JSON.stringify({ walletAddress: publicKey })
       });
+      parseResponse(WalletNonceResponseSchema, body);
     },
     status() {
-      return request<WalletStatus>(endpoints.walletStatus);
+      return request(endpoints.walletStatus).then((body) => parseResponse(WalletStatusSchema, body));
     },
     nonce(walletAddress: string) {
-      return request<WalletNonceResponse>(endpoints.walletNonce, {
+      return request(endpoints.walletNonce, {
         method: "POST",
         body: JSON.stringify({ walletAddress })
-      });
+      }).then((body) => parseResponse(WalletNonceResponseSchema, body));
     },
     verify(walletAddress: string, signature: string) {
       return request(endpoints.walletVerify, {
         method: "POST",
         body: JSON.stringify({ walletAddress, signature })
-      });
+      }).then((body) => parseResponse(WalletConnectResponseSchema, body));
     },
     disconnect() {
-      return request(endpoints.walletDisconnect, { method: "DELETE" });
+      return request(endpoints.walletDisconnect, { method: "DELETE" }).then((body) => parseResponse(WalletConnectResponseSchema, body));
     }
   },
   referral: {
     stats() {
-      return request<ReferralStats>(endpoints.referralStats);
+      return request(endpoints.referralStats).then((body) => parseResponse(ReferralStatsSchema, body));
     }
   },
   checks: {
@@ -353,25 +302,25 @@ export const api = {
       return request(endpoints.reputation, {
         method: "POST",
         body: JSON.stringify({ url })
-      });
+      }).then((body) => parseResponse(UnknownResponseSchema, body));
     },
     redirects(url: string) {
       return request(endpoints.redirects, {
         method: "POST",
         body: JSON.stringify({ url })
-      });
+      }).then((body) => parseResponse(UnknownResponseSchema, body));
     },
     domain(url: string) {
       return request(endpoints.domain, {
         method: "POST",
         body: JSON.stringify({ url })
-      });
+      }).then((body) => parseResponse(UnknownResponseSchema, body));
     },
     cryptoPatterns(url: string) {
       return request(endpoints.cryptoPatterns, {
         method: "POST",
         body: JSON.stringify({ url })
-      });
+      }).then((body) => parseResponse(UnknownResponseSchema, body));
     }
   }
 };
@@ -404,10 +353,11 @@ export async function fetchAirdropStatus(): Promise<AirdropStatusResponse> {
 
 export async function reportUrl(url: string, reason: string) {
   try {
-    await request(endpoints.scanReport, {
+    const body = await request(endpoints.scanReport, {
       method: "POST",
       body: JSON.stringify({ url, reason: normalizeReportReason(reason) })
     });
+    parseResponse(ReportResponseSchema, body);
     return { queued: false, url, reason };
   } catch {
     return { queued: true, url, reason };
@@ -459,6 +409,7 @@ export function mockAnalyzeResponse(input: string): AnalyzeResponse {
   const signals: Signal[] = high
     ? [
         {
+          label: "Domain Age",
           check: "Domain Age",
           result: "8 days old",
           severity: "high",
@@ -466,6 +417,7 @@ export function mockAnalyzeResponse(input: string): AnalyzeResponse {
           passed: false
         },
         {
+          label: "Wallet Drain Pattern",
           check: "Wallet Drain Pattern",
           result: "Approval or wallet action detected",
           severity: "high",
@@ -473,6 +425,7 @@ export function mockAnalyzeResponse(input: string): AnalyzeResponse {
           passed: false
         },
         {
+          label: "Redirect Chain",
           check: "Redirect Chain",
           result: "2 hops detected",
           severity: "medium",
@@ -480,6 +433,7 @@ export function mockAnalyzeResponse(input: string): AnalyzeResponse {
           passed: false
         },
         {
+          label: "TLD Reputation",
           check: "TLD Reputation",
           result: "Non-standard TLD",
           severity: "low",
@@ -490,6 +444,7 @@ export function mockAnalyzeResponse(input: string): AnalyzeResponse {
     : suspicious
       ? [
           {
+            label: "Campaign Language",
             check: "Campaign Language",
             result: "Airdrop or claim terms found",
             severity: "medium",
@@ -497,6 +452,7 @@ export function mockAnalyzeResponse(input: string): AnalyzeResponse {
             passed: false
           },
           {
+            label: "Redirect Chain",
             check: "Redirect Chain",
             result: "No high-risk redirect pattern",
             severity: "low",
@@ -506,6 +462,7 @@ export function mockAnalyzeResponse(input: string): AnalyzeResponse {
         ]
       : [
           {
+            label: "URL Format",
             check: "URL Format",
             result: "Valid HTTPS URL",
             severity: "low",
@@ -515,15 +472,23 @@ export function mockAnalyzeResponse(input: string): AnalyzeResponse {
         ];
 
   return {
+    scanId: `mock:${normalized}`,
     url: normalized,
-    overallRisk,
-    confidenceScore,
-    verdict:
+    riskScore: confidenceScore,
+    verdict: overallRisk === "high" ? "danger" : overallRisk === "suspicious" ? "warn" : "safe",
+    verdictText:
       overallRisk === "high"
         ? "This QR code shows strong indicators of a phishing or wallet-drain flow. Block it unless you independently trust the sender and destination."
         : overallRisk === "suspicious"
           ? "This QR code includes campaign-style language and should be reviewed before continuing. SafeScan recommends checking the destination and avoiding wallet approvals."
           : "This QR code does not show obvious high-risk signals in the mobile demo check. Continue only if the destination matches what you expected.",
+    analyzedAt: new Date().toISOString(),
+    overallRisk,
+    confidenceScore,
+    counted: undefined,
+    scanCount: undefined,
+    payloadType: undefined,
+    source: "demo-fallback",
     signals,
     scannedAt: new Date().toISOString()
   };

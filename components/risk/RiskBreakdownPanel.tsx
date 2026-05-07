@@ -44,7 +44,7 @@ export function RiskBreakdownPanel({ result }: { result: AnalyzeResponse }) {
         <View style={{ flex: 1 }}>
           <Text style={{ color: theme.colors.accent, fontSize: theme.fontSizes.lockedBadge, fontFamily: theme.fonts.sansSemiBold, letterSpacing: 1.7 }}>SCAN VERDICT</Text>
           <Text style={{ color: theme.colors.textPrimary, fontSize: theme.fontSizes.riskModalTitle, lineHeight: 44, fontFamily: theme.fonts.sansSemiBold, marginTop: 4 }}>{status}</Text>
-          <Text style={{ color: theme.colors.textSecondary, lineHeight: 21, marginTop: 8 }}>{result.verdict}</Text>
+          <Text style={{ color: theme.colors.textSecondary, lineHeight: 21, marginTop: 8 }}>{result.verdictText ?? result.verdict}</Text>
         </View>
       </View>
 

@@ -6,16 +6,23 @@ import { theme } from "@/constants/theme";
 import type { AnalyzeResponse } from "@/services/api";
 
 const demoResult: AnalyzeResponse = {
+  scanId: "demo-risk-result",
   url: "https://claim-sqr-airdrop.xyz/connect?approve=all",
+  riskScore: 91,
+  verdict: "danger",
+  verdictText: "This QR payload shows multiple high-risk signals including a new domain, redirect behavior, and wallet-drain style approval language.",
+  analyzedAt: new Date().toISOString(),
   overallRisk: "high",
   confidenceScore: 91,
-  verdict: "This QR payload shows multiple high-risk signals including a new domain, redirect behavior, and wallet-drain style approval language.",
+  counted: undefined,
+  scanCount: undefined,
+  payloadType: undefined,
   source: "demo-fallback",
   scannedAt: new Date().toISOString(),
   signals: [
-    { check: "Domain Age", result: "8 days old", severity: "high", description: "New domains are commonly used in phishing campaigns.", passed: false },
-    { check: "Wallet Pattern", result: "approve=all", severity: "high", description: "The URL appears to request broad wallet approval before the user can inspect the action.", passed: false },
-    { check: "Redirect Chain", result: "2 hops detected", severity: "medium", description: "Extra redirects can hide the final destination.", passed: false }
+    { label: "Domain Age", check: "Domain Age", result: "8 days old", severity: "high", description: "New domains are commonly used in phishing campaigns.", passed: false },
+    { label: "Wallet Pattern", check: "Wallet Pattern", result: "approve=all", severity: "high", description: "The URL appears to request broad wallet approval before the user can inspect the action.", passed: false },
+    { label: "Redirect Chain", check: "Redirect Chain", result: "2 hops detected", severity: "medium", description: "Extra redirects can hide the final destination.", passed: false }
   ]
 };
 

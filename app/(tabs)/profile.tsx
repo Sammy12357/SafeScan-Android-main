@@ -31,6 +31,11 @@ export default function ProfileScreen() {
           <Text style={{ color: theme.colors.textPrimary, fontSize: 26, fontFamily: theme.fonts.sansSemiBold }}>{user?.name ?? "Safe scanner"}</Text>
           <Text style={{ color: theme.colors.textSecondary, marginTop: 4 }}>{user?.email ?? "demo@safescan.app"}</Text>
         </View>
+        {user?.role === "admin" ? (
+          <View style={{ alignSelf: "flex-start", borderWidth: 1, borderColor: "rgba(124, 58, 237, 0.55)", borderRadius: 8, backgroundColor: "rgba(124, 58, 237, 0.16)", paddingHorizontal: 10, paddingVertical: 6 }}>
+            <Text style={{ color: theme.colors.primary, fontSize: 12, fontFamily: theme.fonts.sansSemiBold, letterSpacing: 1 }}>ADMIN</Text>
+          </View>
+        ) : null}
         <View style={{ flexDirection: "row", gap: 10 }}>
           <View style={{ flex: 1, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, padding: 12 }}>
             <Text style={{ color: theme.colors.textPrimary, fontSize: 22, fontFamily: theme.fonts.sansSemiBold }}>{history.length}</Text>

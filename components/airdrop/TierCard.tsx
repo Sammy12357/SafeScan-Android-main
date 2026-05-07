@@ -7,11 +7,13 @@ import type { tiers } from "@/constants/tiers";
 type Tier = (typeof tiers)[number];
 
 export function TierCard({ tier, unlocked, compact = false }: { tier: Tier; unlocked: boolean; compact?: boolean }) {
+  const rewardLabel = compact ? tier.reward.toUpperCase().replace(" ", "\n") : tier.reward.toUpperCase();
+
   return (
     <Card
       style={{
         opacity: unlocked ? 1 : 0.5,
-        minHeight: compact ? 116 : 170,
+        minHeight: compact ? 128 : 170,
         flex: compact ? 1 : undefined,
         padding: compact ? 10 : 22,
         borderColor: unlocked ? colors.primary : colors.surfaceBorder,
@@ -30,8 +32,8 @@ export function TierCard({ tier, unlocked, compact = false }: { tier: Tier; unlo
       {!compact ? (
         <Text style={{ ...typography.body, marginTop: 8 }}>Scan {tier.scanThreshold} QR codes and invite {tier.referralThreshold} user{tier.referralThreshold === 1 ? "" : "s"}.</Text>
       ) : null}
-      <View style={{ alignSelf: "flex-start", marginTop: "auto", borderRadius: 999, backgroundColor: colors.primaryDim, borderWidth: 1, borderColor: colors.primary, paddingHorizontal: compact ? 7 : 12, paddingVertical: compact ? 6 : 9 }}>
-        <Text style={{ ...typography.tierReward, fontSize: compact ? 9 : 12 }}>{tier.reward.toUpperCase()}</Text>
+      <View style={{ alignSelf: compact ? "stretch" : "flex-start", marginTop: "auto", borderRadius: compact ? 8 : 999, backgroundColor: colors.primaryDim, borderWidth: 1, borderColor: colors.primary, paddingHorizontal: compact ? 6 : 12, paddingVertical: compact ? 6 : 9 }}>
+        <Text style={{ ...typography.tierReward, fontSize: compact ? 8 : 12, lineHeight: compact ? 11 : undefined, textAlign: compact ? "center" : "left" }}>{rewardLabel}</Text>
       </View>
     </Card>
   );

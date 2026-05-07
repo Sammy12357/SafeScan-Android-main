@@ -16,11 +16,11 @@ const buttonClasses: Record<ButtonVariant, string> = {
   danger: "bg-risk-danger-bg border-risk-danger-border"
 };
 
-const textClasses: Record<ButtonVariant, string> = {
-  primary: "text-[#041019]",
-  secondary: "text-textPrimary",
-  ghost: "text-primary",
-  danger: "text-risk-danger-text"
+const textColors: Record<ButtonVariant, string> = {
+  primary: theme.colors.primaryButtonText,
+  secondary: theme.colors.textPrimary,
+  ghost: theme.colors.primary,
+  danger: theme.colors.risk.danger.text
 };
 
 export function Button({ title, variant = "primary", disabled, className = "", style, ...props }: ButtonProps) {
@@ -39,7 +39,7 @@ export function Button({ title, variant = "primary", disabled, className = "", s
       ]}
       {...props}
     >
-      <Text className={`font-display text-button ${textClasses[variant]}`} style={{ fontFamily: theme.fonts.display }}>
+      <Text className="font-display text-button" style={{ color: textColors[variant], fontFamily: theme.fonts.display }}>
         {title}
       </Text>
     </Pressable>

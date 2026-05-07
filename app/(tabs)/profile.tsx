@@ -27,7 +27,7 @@ function truncateMiddle(value: string, visible = 6) {
 
 function StatCard({ value, label }: { value: string | number; label: string }) {
   return (
-    <View style={{ flex: 1, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 12, backgroundColor: "rgba(255, 255, 255, 0.03)" }}>
+    <View style={{ flex: 1, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 12, backgroundColor: theme.colors.surface }}>
       <Text style={{ color: theme.colors.textPrimary, fontSize: 20, fontFamily: theme.fonts.display }}>{value}</Text>
       <Text style={{ color: theme.colors.textSecondary, marginTop: 4, fontFamily: theme.fonts.sans }}>{label}</Text>
     </View>
@@ -136,7 +136,7 @@ export default function ProfileScreen() {
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       contentContainerStyle={{ paddingHorizontal: 16, paddingTop: insets.top + 24, gap: 16, paddingBottom: Math.max(insets.bottom, 20) + 36 }}
     >
-      <View style={{ borderColor: theme.colors.border, borderWidth: 1, borderRadius: 8, backgroundColor: "rgba(10, 18, 33, 0.9)", padding: 16, gap: 14, ...theme.shadows.cardSubtle }}>
+      <View style={{ borderColor: theme.colors.border, borderWidth: 1, borderRadius: 8, backgroundColor: theme.colors.surfaceElevated, padding: 16, gap: 14, ...theme.shadows.cardSubtle }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
           <Pressable accessibilityRole="button" onPress={pickAvatar} style={{ width: 72, height: 72, borderRadius: 36, overflow: "hidden", backgroundColor: theme.colors.primaryDim, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.colors.primaryGlow }}>
             {avatarUri ? (

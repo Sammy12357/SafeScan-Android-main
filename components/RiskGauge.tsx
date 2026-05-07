@@ -2,13 +2,14 @@ import { useEffect } from "react";
 import { Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { theme } from "@/constants/theme";
 
 type Verdict = "safe" | "warn" | "danger";
 
 const verdictColors: Record<Verdict, string> = {
-  safe: "#22c55e",
-  warn: "#f59e0b",
-  danger: "#ef4444"
+  safe: theme.colors.safe,
+  warn: theme.colors.warn,
+  danger: theme.colors.danger
 };
 
 function polarToCartesian(cx: number, cy: number, radius: number, angle: number) {
@@ -42,7 +43,7 @@ export function RiskGauge({ score, verdict }: { score: number; verdict: Verdict 
     <View className="items-center justify-center">
       <View className="h-44 w-72 items-center justify-center">
         <Svg width={272} height={150} viewBox="0 0 272 150">
-          <Path d={arcPath(136, 136, 104, 0, 180)} stroke="rgba(255,255,255,0.12)" strokeWidth={18} fill="none" strokeLinecap="round" />
+          <Path d={arcPath(136, 136, 104, 0, 180)} stroke={theme.colors.risk.card.gaugeTrack} strokeWidth={18} fill="none" strokeLinecap="round" />
           <Path d={arcPath(136, 136, 104, 0, 180)} stroke={color} strokeWidth={18} fill="none" strokeLinecap="round" />
         </Svg>
         <Animated.View className="absolute bottom-8 h-24 w-1 origin-bottom rounded-pill" style={[{ backgroundColor: color }, needleStyle]} />

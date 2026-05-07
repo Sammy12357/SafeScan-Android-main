@@ -48,13 +48,13 @@ export function RiskBreakdownPanel({ result }: { result: AnalyzeResponse }) {
         </View>
       </View>
 
-      <View style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.04)", padding: 14 }}>
+      <View style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, backgroundColor: theme.colors.surface, padding: 14 }}>
         <Text style={{ color: theme.colors.accent, fontSize: 11, fontFamily: theme.fonts.sansSemiBold, letterSpacing: 1.4 }}>DECODED URL / PAYLOAD</Text>
         <Text style={{ color: theme.colors.textPrimary, lineHeight: 21, marginTop: 8, fontFamily: theme.fonts.mono }}>{result.url}</Text>
       </View>
 
-      <View style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, backgroundColor: "rgba(255,255,255,0.04)", padding: 12, flexDirection: "row", gap: 10, alignItems: "center" }}>
-        <View style={{ borderRadius: 999, borderWidth: 1, borderColor: result.source === "backend" ? "rgba(80, 227, 164, 0.32)" : "rgba(255, 187, 85, 0.32)", backgroundColor: result.source === "backend" ? "rgba(80, 227, 164, 0.1)" : "rgba(255, 187, 85, 0.1)", paddingHorizontal: 10, paddingVertical: 6 }}>
+      <View style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, backgroundColor: theme.colors.surface, padding: 12, flexDirection: "row", gap: 10, alignItems: "center" }}>
+        <View style={{ borderRadius: 999, borderWidth: 1, borderColor: result.source === "backend" ? theme.colors.risk.safe.border : theme.colors.risk.warn.border, backgroundColor: result.source === "backend" ? theme.colors.risk.safe.bg : theme.colors.risk.warn.bg, paddingHorizontal: 10, paddingVertical: 6 }}>
           <Text style={{ color: result.source === "backend" ? theme.colors.safe : theme.colors.suspicious, fontSize: 11, fontFamily: theme.fonts.sansSemiBold }}>{result.source === "backend" ? "LIVE API" : "DEMO FALLBACK"}</Text>
         </View>
         <Text style={{ color: theme.colors.textSecondary, flex: 1 }}>SafeScan backend: safescan-qr.onrender.com</Text>

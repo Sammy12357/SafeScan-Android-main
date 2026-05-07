@@ -22,7 +22,7 @@ function ScanCorner({ detected, style }: { detected: boolean; style: object }) {
   }, [detected, progress]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    borderColor: interpolateColor(progress.value, [0, 1], ["#ffffff", theme.colors.safe])
+    borderColor: interpolateColor(progress.value, [0, 1], [theme.colors.textPrimary, theme.colors.safe])
   }));
 
   return (
@@ -124,7 +124,7 @@ export default function ScannerScreen() {
       </View>
 
       {isAnalyzing ? (
-        <View style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(9,17,31,0.55)" }}>
+        <View style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.risk.card.overlayBg }}>
           <View style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, backgroundColor: theme.colors.surfaceElevated, paddingHorizontal: 22, paddingVertical: 18, alignItems: "center", gap: 12 }}>
             <ActivityIndicator color={theme.colors.accent} />
             <Text style={{ color: theme.colors.textPrimary, fontFamily: theme.fonts.sansSemiBold }}>Analyzing…</Text>
@@ -147,7 +147,7 @@ export default function ScannerScreen() {
       >
         <View style={{ flex: 1, paddingHorizontal: 18, paddingBottom: Math.max(insets.bottom, 10), gap: 10 }}>
           <Text style={{ ...theme.typography.eyebrow, fontSize: 11 }}>LAST SCAN</Text>
-          <View style={{ alignSelf: "flex-start", maxWidth: "100%", borderRadius: 999, borderWidth: 1, borderColor: currentScan ? theme.colors.border : theme.colors.primaryDim, backgroundColor: currentScan ? "rgba(255,255,255,0.05)" : theme.colors.primaryDim, paddingHorizontal: 12, paddingVertical: 8 }}>
+          <View style={{ alignSelf: "flex-start", maxWidth: "100%", borderRadius: 999, borderWidth: 1, borderColor: currentScan ? theme.colors.border : theme.colors.primaryDim, backgroundColor: currentScan ? theme.colors.surface : theme.colors.primaryDim, paddingHorizontal: 12, paddingVertical: 8 }}>
             <Text style={{ color: currentScan ? theme.colors.textPrimary : theme.colors.accent, fontFamily: theme.fonts.sansSemiBold }}>
               {currentScan ? `${currentScan.verdict.toUpperCase()} · ${truncateMiddle(currentScan.url, 36)}` : "Ready to scan"}
             </Text>

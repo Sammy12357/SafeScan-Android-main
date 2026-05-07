@@ -37,9 +37,9 @@ export default function GoogleAuthScreen() {
           style={({ pressed }) => ({
             minHeight: 50,
             borderRadius: 8,
-            backgroundColor: "#ffffff",
+            backgroundColor: theme.colors.textPrimary,
             borderWidth: 1,
-            borderColor: "rgba(255,255,255,0.22)",
+            borderColor: theme.colors.border,
             alignItems: "center",
             justifyContent: "center",
             flexDirection: "row",
@@ -48,8 +48,8 @@ export default function GoogleAuthScreen() {
             transform: [{ scale: pressed ? 0.98 : 1 }]
           })}
         >
-          <AntDesign name="google" size={20} color="#111827" />
-          <Text style={{ color: "#111827", fontFamily: theme.fonts.sansSemiBold, fontSize: 15 }}>Sign in with Google</Text>
+          <AntDesign name="google" size={20} color={theme.colors.backgroundEnd} />
+          <Text style={{ color: theme.colors.backgroundEnd, fontFamily: theme.fonts.sansSemiBold, fontSize: 15 }}>Sign in with Google</Text>
         </Pressable>
 
         {isLoading ? <ActivityIndicator color={theme.colors.accent} /> : null}

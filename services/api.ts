@@ -42,6 +42,8 @@ const endpoints = {
   authVerify: "/auth/verify",
   authRefresh: "/auth/refresh",
   authLogout: "/auth/logout",
+  health: "/api/health",
+  wakeAnalyze: "/api/analyze",
   scanAnalyze: "/api/scan",
   scanHistory: "/api/scan/history",
   scanReport: "/api/report",
@@ -320,6 +322,33 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ url })
       }).then((body) => parseResponse(UnknownResponseSchema, body));
+    }
+  },
+  system: {
+    async health() {
+      try {
+        const body = await request(endpoints.health, {
+          method: "GET",
+          auth: false,
+          retry: false,
+          timeoutMs: 5000
+        });
+        parseResponse(UnknownResponseSchema, body);
+        return true;
+      } catch (error) {
+        if (error instanceof SafeScanApiError && error.status === 404) return false;
+        throw error;
+      }
+    },
+    async wakeAnalyze(url: string) {
+      const body = await request(endpoints.wakeAnalyze, {
+        method: "POST",
+        auth: false,
+        retry: false,
+        timeoutMs: 5000,
+        body: JSON.stringify({ url })
+      });
+      parseResponse(UnknownResponseSchema, body);
     }
   }
 };

@@ -22,9 +22,9 @@ const verdictLabels: Record<AnalyzeResult["verdict"], string> = {
 };
 
 const verdictColors: Record<AnalyzeResult["verdict"], string> = {
-  safe: "#22c55e",
-  warn: "#f59e0b",
-  danger: "#ef4444"
+  safe: theme.colors.safe,
+  warn: theme.colors.warn,
+  danger: theme.colors.danger
 };
 
 function historyItemToAnalyzeResult(item: ScanHistoryItem): AnalyzeResult {

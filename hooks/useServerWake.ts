@@ -1,22 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { config } from "@/constants/config";
+import { api } from "@/services/api";
 
 const START_DELAY_MS = 5000;
 const POLL_INTERVAL_MS = 3000;
 const DUMMY_URL = "https://safescan-qr.onrender.com";
 
-async function pingBackend(signal: AbortSignal) {
-  const health = await fetch(`${config.apiBaseUrl}/api/health`, { method: "GET", signal });
-  if (health.ok) return true;
-  if (health.status !== 404) return false;
-
-  const analysis = await fetch(`${config.apiBaseUrl}/api/analyze`, {
-    method: "POST",
-    signal,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url: DUMMY_URL })
-  });
-  return analysis.ok;
+async function pingBackend() {
+  if (await api.system.health()) return true;
+  await api.system.wakeAnalyze(DUMMY_URL);
+  return true;
 }
 
 export function useServerWake() {
@@ -35,17 +27,17 @@ export function useServerWake() {
   }, [isWaking]);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let isMounted = true;
     let pollId: ReturnType<typeof setInterval> | null = null;
 
     const checkServer = async () => {
       try {
-        if (await pingBackend(controller.signal)) {
+        if (isMounted && (await pingBackend())) {
           setIsWaking(false);
           if (pollId) clearInterval(pollId);
         }
       } catch {
-        setIsWaking(true);
+        if (isMounted) setIsWaking(true);
       }
     };
 
@@ -55,7 +47,7 @@ export function useServerWake() {
     }, START_DELAY_MS);
 
     return () => {
-      controller.abort();
+      isMounted = false;
       clearTimeout(startId);
       if (pollId) clearInterval(pollId);
     };

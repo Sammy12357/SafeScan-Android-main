@@ -41,7 +41,7 @@ export function OfflineBanner() {
         animatedStyle
       ]}
     >
-      <Text style={{ color: "#031017", textAlign: "center", fontFamily: theme.fonts.sansSemiBold, fontSize: 14 }}>No internet connection</Text>
+      <Text style={{ color: theme.colors.primaryButtonText, textAlign: "center", fontFamily: theme.fonts.sansSemiBold, fontSize: 14 }}>No internet connection</Text>
     </Animated.View>
   );
 }

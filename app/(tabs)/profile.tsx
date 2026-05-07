@@ -15,7 +15,7 @@ const links = [
   ["Terms of Use", "https://safescan-qr.onrender.com/legal/terms-of-use"],
   ["Cookie Policy", "https://safescan-qr.onrender.com/legal/cookie-policy"],
   ["Data Request", "https://safescan-qr.onrender.com/legal/data-request"],
-  ["Security", "https://safescan-qr.onrender.com/security"],
+  ["Security", "https://safescan-qr.onrender.com/legal/security"],
   ["Contact", "mailto:privacy@safescan-qr.onrender.com"]
 ] as const;
 

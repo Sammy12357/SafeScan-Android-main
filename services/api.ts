@@ -43,7 +43,33 @@ export type AirdropStatusResponse = {
   airdropStatus: string;
   fraudScore: number;
   referralCode?: string | null;
+  referralLink?: string | null;
   nextMilestone: string;
+};
+
+export type ReferralResponse = {
+  code: string;
+  link: string;
+  referrals: number;
+};
+
+export type WalletStatusResponse = {
+  connected: boolean;
+  walletAddress?: string | null;
+  verified?: boolean;
+  connectedAt?: string;
+  onchain?: {
+    solBalance?: number | null;
+    txCount?: number | null;
+    walletAgeDays?: number | null;
+    verifiedAt?: string | null;
+  };
+};
+
+export type WalletNonceResponse = {
+  nonce: string;
+  message: string;
+  expiresAt: string;
 };
 
 type ApiOptions = RequestInit & {
@@ -78,9 +104,9 @@ async function apiFetch(path: string, options: ApiOptions = {}) {
 
 export async function analyzeUrl(url: string): Promise<AnalyzeResponse> {
   try {
-    const json = await apiFetch("/api/analyze", {
+    const json = await apiFetch("/api/scan", {
       method: "POST",
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ payload: url }),
       timeoutMs: config.analyzeTimeoutMs
     });
     return { ...AnalyzeResponseSchema.parse(json), source: "backend" };
@@ -142,11 +168,21 @@ export async function reportUrl(url: string, reason: string) {
   try {
     return await apiFetch("/api/report", {
       method: "POST",
-      body: JSON.stringify({ url, reason })
+      body: JSON.stringify({ url, reason: normalizeReportReason(reason) })
     });
   } catch {
     return { queued: true, url, reason };
   }
+}
+
+function normalizeReportReason(reason: string) {
+  const normalized = reason.toLowerCase();
+  if (["phishing", "wallet_drain", "malware", "spam", "other"].includes(normalized)) return normalized;
+  if (normalized.includes("wallet")) return "wallet_drain";
+  if (normalized.includes("malware")) return "malware";
+  if (normalized.includes("spam")) return "spam";
+  if (normalized.includes("phish") || normalized.includes("block")) return "phishing";
+  return "other";
 }
 
 export function checkReputation(url: string) {
@@ -178,11 +214,29 @@ export function checkCryptoPatterns(url: string) {
 }
 
 export function fetchWalletStatus() {
-  return apiFetch("/api/wallet", { method: "GET" });
+  return apiFetch("/api/wallet", { method: "GET" }) as Promise<WalletStatusResponse>;
 }
 
 export function disconnectWallet() {
   return apiFetch("/api/wallet", { method: "DELETE" });
+}
+
+export function fetchReferralStatus() {
+  return apiFetch("/api/referral", { method: "GET" }) as Promise<ReferralResponse>;
+}
+
+export function requestWalletNonce(walletAddress: string) {
+  return apiFetch("/api/wallet/nonce", {
+    method: "POST",
+    body: JSON.stringify({ walletAddress })
+  }) as Promise<WalletNonceResponse>;
+}
+
+export function verifyWallet(walletAddress: string, signature: string) {
+  return apiFetch("/api/wallet/verify", {
+    method: "POST",
+    body: JSON.stringify({ walletAddress, signature })
+  });
 }
 
 export function mockAnalyzeResponse(input: string): AnalyzeResponse {

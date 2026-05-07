@@ -22,7 +22,7 @@ const queryClient = new QueryClient({
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
-  const { hydrate, isLoading, session } = useAuthStore();
+  const { hydrateFromStorage, isAuthenticated, isLoading } = useAuthStore();
   const [fontsLoaded] = useFonts({
     "Inter-Regular": require("../assets/fonts/Inter-Regular.ttf"),
     "Inter-Medium": require("../assets/fonts/Inter-Medium.ttf"),
@@ -37,18 +37,17 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    hydrateFromStorage();
+  }, [hydrateFromStorage]);
 
   useEffect(() => {
     if (isLoading) return;
     const inTabs = segments[0] === "(tabs)";
     const inAuth = segments[0] === "auth";
     const inScanResult = segments[0] === "scan-result";
-    const authenticated = Boolean(session);
-    if (!authenticated && !inAuth) router.replace("/auth/google");
-    if (authenticated && !inTabs && !inScanResult) router.replace("/(tabs)/scanner");
-  }, [isLoading, router, segments, session]);
+    if (!isAuthenticated && !inAuth) router.replace("/auth/google");
+    if (isAuthenticated && !inTabs && !inScanResult) router.replace("/(tabs)/scanner");
+  }, [isAuthenticated, isLoading, router, segments]);
 
   if (!fontsLoaded) {
     return (

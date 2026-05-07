@@ -1,4 +1,3 @@
-import * as SecureStore from "expo-secure-store";
 import { z } from "zod";
 import {
   AirdropStatusSchema,
@@ -36,6 +35,8 @@ const AUTH_TOKEN_KEY = "auth_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
 const DEFAULT_TIMEOUT_MS = 60000;
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+let accessToken: string | null = null;
+let refreshTokenValue: string | null = null;
 
 const endpoints = {
   authVerify: "/auth/verify",
@@ -115,18 +116,18 @@ async function readBody(response: Response) {
   }
 }
 
-async function saveTokens(tokens: TokenPair) {
-  await Promise.all([
-    SecureStore.setItemAsync(AUTH_TOKEN_KEY, tokens.accessToken),
-    SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokens.refreshToken)
-  ]);
+export function setApiTokens(tokens: Partial<TokenPair>) {
+  if (tokens.accessToken !== undefined) accessToken = tokens.accessToken;
+  if (tokens.refreshToken !== undefined) refreshTokenValue = tokens.refreshToken;
 }
 
-async function clearTokens() {
-  await Promise.all([
-    SecureStore.deleteItemAsync(AUTH_TOKEN_KEY),
-    SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY)
-  ]);
+export function clearApiTokens() {
+  accessToken = null;
+  refreshTokenValue = null;
+}
+
+export function getApiAccessToken() {
+  return accessToken;
 }
 
 function parseResponse<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, body: unknown): T {
@@ -139,17 +140,16 @@ function parseResponse<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, body: unk
 }
 
 async function refreshAccessToken() {
-  const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
-  if (!refreshToken) throw new SafeScanApiError(401, { error: "Missing refresh token" });
+  if (!refreshTokenValue) throw new SafeScanApiError(401, { error: "Missing refresh token" });
 
   const body = await request(endpoints.authRefresh, {
     method: "POST",
     auth: false,
     retry: false,
-    body: JSON.stringify({ refreshToken })
+    body: JSON.stringify({ refreshToken: refreshTokenValue })
   });
   const tokens = parseResponse(TokenPairSchema, body);
-  await saveTokens(tokens);
+  setApiTokens(tokens);
   return tokens;
 }
 
@@ -160,7 +160,6 @@ async function request(path: string, options: RequestOptions = {}): Promise<unkn
 
   headers.set("Content-Type", "application/json");
   if (options.auth !== false) {
-    const accessToken = await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
     if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
@@ -204,7 +203,7 @@ export const api = {
         body: JSON.stringify({ token: idToken })
       });
       const result = parseResponse(AuthResponseSchema, body);
-      await saveTokens(result);
+      setApiTokens(result);
       return result;
     },
     async refreshToken(refreshToken: string) {
@@ -215,7 +214,7 @@ export const api = {
         body: JSON.stringify({ refreshToken })
       });
       const result = parseResponse(TokenPairSchema, body);
-      await saveTokens(result);
+      setApiTokens(result);
       return result;
     },
     async logout(sessionOverride?: string | null) {
@@ -229,7 +228,7 @@ export const api = {
         });
         parseResponse(EmptyResponseSchema, body);
       } finally {
-        await clearTokens();
+        clearApiTokens();
       }
     }
   },

@@ -1,53 +1,97 @@
+import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
-import { roleForEmail, type UserRole } from "@/constants/config";
-import { deleteSecureValue, getSecureJson, getSecureString, setSecureJson, setSecureString } from "@/services/storage";
+import { api, clearApiTokens, setApiTokens, type User } from "@/services/api";
+import { roleForEmail } from "@/constants/config";
 
-export type UserProfile = {
-  id: string;
-  name: string;
-  email: string;
-  role?: UserRole;
-  avatarUrl?: string;
-};
+const AUTH_TOKEN_KEY = "auth_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
 
-type AuthStore = {
-  session: string | null;
-  user: UserProfile | null;
+type AuthState = {
+  user: User | null;
+  isAuthenticated: boolean;
   isLoading: boolean;
-  hydrate: () => Promise<void>;
-  setSession: (jwt: string) => Promise<void>;
-  setUser: (user: UserProfile) => Promise<void>;
-  clearAuth: () => Promise<void>;
-  isAuthenticated: () => boolean;
+  error: string | null;
 };
+
+type AuthStore = AuthState & {
+  loginWithGoogle: (idToken: string) => Promise<void>;
+  logout: () => Promise<void>;
+  hydrateFromStorage: () => Promise<void>;
+  setUser: (user: User) => void;
+};
+
+const initialState: AuthState = {
+  user: null,
+  isAuthenticated: false,
+  isLoading: true,
+  error: null
+};
+
+function normalizeUser(user: User): User {
+  return { ...user, role: roleForEmail(user.email) };
+}
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
-  session: null,
-  user: null,
-  isLoading: true,
-  hydrate: async () => {
-    const [session, user] = await Promise.all([
-      getSecureString("safescan_session"),
-      getSecureJson<UserProfile>("safescan_user")
-    ]);
-    set({ session, user: user ? { ...user, role: roleForEmail(user.email) } : null, isLoading: false });
+  ...initialState,
+  loginWithGoogle: async (idToken) => {
+    set({ isLoading: true, error: null });
+    try {
+      const result = await api.auth.verifyToken(idToken);
+      await Promise.all([
+        SecureStore.setItemAsync(AUTH_TOKEN_KEY, result.accessToken),
+        SecureStore.setItemAsync(REFRESH_TOKEN_KEY, result.refreshToken)
+      ]);
+      setApiTokens({ accessToken: result.accessToken, refreshToken: result.refreshToken });
+      set({
+        user: normalizeUser(result.user),
+        isAuthenticated: true,
+        isLoading: false,
+        error: null
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "SafeScan sign-in failed.";
+      clearApiTokens();
+      await Promise.all([
+        SecureStore.deleteItemAsync(AUTH_TOKEN_KEY),
+        SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY)
+      ]);
+      set({ ...initialState, isLoading: false, error: message });
+      throw error;
+    }
   },
-  setSession: async (jwt) => {
-    await setSecureString("safescan_session", jwt);
-    set({ session: jwt });
-  },
-  setUser: async (user) => {
-    const normalizedUser = { ...user, role: roleForEmail(user.email) };
-    await setSecureJson("safescan_user", normalizedUser);
-    set({ user: normalizedUser });
-  },
-  clearAuth: async () => {
-    set({ session: null, user: null });
+  logout: async () => {
+    clearApiTokens();
     await Promise.all([
-      deleteSecureValue("safescan_session"),
-      deleteSecureValue("safescan_user"),
-      deleteSecureValue("safescan_wallet")
+      SecureStore.deleteItemAsync(AUTH_TOKEN_KEY),
+      SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY)
     ]);
+    set({ ...initialState, isLoading: false });
   },
-  isAuthenticated: () => Boolean(get().session)
+  hydrateFromStorage: async () => {
+    set({ isLoading: true, error: null });
+    const token = await SecureStore.getItemAsync(AUTH_TOKEN_KEY);
+    if (!token) {
+      clearApiTokens();
+      set({ ...initialState, isLoading: false });
+      return;
+    }
+
+    const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+    setApiTokens({ accessToken: token, refreshToken: refreshToken ?? token });
+
+    try {
+      const profile = await api.user.profile();
+      set({
+        user: normalizeUser(profile),
+        isAuthenticated: true,
+        isLoading: false,
+        error: null
+      });
+    } catch {
+      await get().logout();
+    }
+  },
+  setUser: (user) => {
+    set({ user: normalizeUser(user) });
+  }
 }));

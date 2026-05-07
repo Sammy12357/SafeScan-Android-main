@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { config } from "@/constants/config";
 import { theme } from "@/constants/theme";
-import { verifyGoogleToken } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -15,7 +14,7 @@ WebBrowser.maybeCompleteAuthSession();
 export default function GoogleAuthScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { setSession, setUser } = useAuthStore();
+  const loginWithGoogle = useAuthStore((state) => state.loginWithGoogle);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [authError, setAuthError] = useState("");
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
@@ -40,9 +39,7 @@ export default function GoogleAuthScreen() {
       }
 
       try {
-        const result = await verifyGoogleToken(idToken);
-        await setSession(result.session);
-        await setUser(result.user);
+        await loginWithGoogle(idToken);
         router.replace("/(tabs)/scanner");
       } catch (error) {
         setAuthError(error instanceof Error ? error.message : "SafeScan sign-in failed.");
@@ -52,7 +49,7 @@ export default function GoogleAuthScreen() {
     };
 
     finishGoogleSignIn();
-  }, [response, router, setSession, setUser]);
+  }, [loginWithGoogle, response, router]);
 
   const startGoogleSignIn = async () => {
     setAuthError("");

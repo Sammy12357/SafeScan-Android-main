@@ -7,7 +7,7 @@ import { ReferralCard } from "@/components/shared/ReferralCard";
 import { WalletConnect } from "@/components/wallet/WalletConnect";
 import { useAuthStore } from "@/stores/authStore";
 import { useScanStore } from "@/stores/scanStore";
-import { fetchProfile, logoutSession, type UserProfileResponse } from "@/services/api";
+import { fetchProfile, type UserProfileResponse } from "@/services/api";
 import { theme } from "@/constants/theme";
 
 const links = [
@@ -22,7 +22,7 @@ const links = [
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, session, clearAuth } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const history = useScanStore((state) => state.history);
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const displayName = profile?.name ?? user?.name ?? "Safe scanner";
@@ -77,10 +77,8 @@ export default function ProfileScreen() {
         title="Sign Out"
         variant="secondary"
         onPress={async () => {
-          const sessionToRevoke = session;
           router.replace("/auth/google");
-          await clearAuth();
-          void logoutSession(sessionToRevoke);
+          await logout();
         }}
       />
     </ScrollView>

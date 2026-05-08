@@ -1,5 +1,6 @@
-import { Redirect } from "expo-router";
+import { View } from "react-native";
+import { colors } from "@/constants/theme";
 
 export default function IndexScreen() {
-  return <Redirect href="/auth/google" />;
+  return <View style={{ flex: 1, backgroundColor: colors.background }} />;
 }

@@ -14,7 +14,7 @@ import { ToastProvider } from "@/components/shared/ToastProvider";
 import { colors } from "@/constants/theme";
 import { useAuthStore } from "@/stores/authStore";
 
-const publicRoutes = ["/", "/auth/google", "/legal/privacy", "/legal/terms"];
+const publicRoutes = ["/auth/google", "/legal/privacy", "/legal/terms"];
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -74,13 +74,23 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   useEffect(() => {
     if (isLoading || !fontsLoaded) return;
 
+    if (!isAuthenticated && pathname === "/") {
+      router.replace("/auth/google");
+      return;
+    }
+
+    if (isAuthenticated && pathname === "/") {
+      router.replace("/(tabs)/scanner");
+      return;
+    }
+
     const isPublicRoute = publicRoutes.includes(pathname);
     if (!isAuthenticated && !isPublicRoute) {
       router.replace("/auth/google");
       return;
     }
 
-    if (isAuthenticated && (pathname === "/" || pathname === "/auth/google")) {
+    if (isAuthenticated && pathname === "/auth/google") {
       router.replace("/(tabs)/scanner");
     }
   }, [fontsLoaded, isAuthenticated, isLoading, pathname, router]);

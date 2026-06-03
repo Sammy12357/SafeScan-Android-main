@@ -28,7 +28,7 @@ export function Button({ title, variant = "primary", disabled, className = "", s
     <Pressable
       accessibilityRole="button"
       disabled={disabled}
-      className={`min-h-[44px] items-center justify-center rounded-web border px-5 py-3 ${buttonClasses[variant]} ${className}`}
+      className={`min-h-[44px] w-full items-center justify-center rounded-web border px-5 py-3 ${buttonClasses[variant]} ${className}`}
       style={(state) => [
         {
           opacity: disabled ? 0.5 : 1,
@@ -39,7 +39,13 @@ export function Button({ title, variant = "primary", disabled, className = "", s
       ]}
       {...props}
     >
-      <Text className="font-display text-button" style={{ color: textColors[variant], fontFamily: theme.fonts.display }}>
+      <Text
+        className="font-display text-button"
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.72}
+        style={{ color: textColors[variant], fontFamily: theme.fonts.display, textAlign: "center" }}
+      >
         {title}
       </Text>
     </Pressable>

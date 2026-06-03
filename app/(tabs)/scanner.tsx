@@ -1,16 +1,31 @@
-import { useEffect, useMemo } from "react";
-import { ActivityIndicator, Linking, Text, useWindowDimensions, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Linking, Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { CameraView, type BarcodeScanningResult } from "expo-camera";
-import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, { interpolateColor, runOnJS, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
 import { Button } from "@/components/ui/Button";
 import { theme } from "@/constants/theme";
 import { useScanner } from "@/hooks/useScanner";
 import { useScanStore } from "@/stores/scanStore";
 import { truncateMiddle } from "@/utils/url";
 
-const FRAME_SIZE = 272;
+function useIsFocused() {
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, [])
+  );
+  return focused;
+}
+
+const MIN_FRAME_SIZE = 292;
+const MAX_FRAME_SIZE = 344;
 const CORNER_SIZE = 34;
 const CORNER_WIDTH = 4;
 
@@ -40,10 +55,10 @@ function ScanCorner({ detected, style }: { detected: boolean; style: object }) {
   );
 }
 
-function ScannerOverlay({ detected }: { detected: boolean }) {
+function ScannerOverlay({ detected, frameSize }: { detected: boolean; frameSize: number }) {
   const { width, height } = useWindowDimensions();
-  const top = (height - FRAME_SIZE) / 2;
-  const left = (width - FRAME_SIZE) / 2;
+  const top = (height - frameSize) / 2;
+  const left = (width - frameSize) / 2;
   const pulse = useSharedValue(1);
 
   useEffect(() => {
@@ -57,18 +72,18 @@ function ScannerOverlay({ detected }: { detected: boolean }) {
   return (
     <View pointerEvents="none" style={{ flex: 1 }}>
       <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: top, backgroundColor: theme.colors.scanner.overlayVignette }} />
-      <View style={{ position: "absolute", left: 0, top, width: left, height: FRAME_SIZE, backgroundColor: theme.colors.scanner.overlayVignette }} />
-      <View style={{ position: "absolute", right: 0, top, width: left, height: FRAME_SIZE, backgroundColor: theme.colors.scanner.overlayVignette }} />
-      <View style={{ position: "absolute", left: 0, right: 0, top: top + FRAME_SIZE, bottom: 0, backgroundColor: theme.colors.scanner.overlayVignette }} />
+      <View style={{ position: "absolute", left: 0, top, width: left, height: frameSize, backgroundColor: theme.colors.scanner.overlayVignette }} />
+      <View style={{ position: "absolute", right: 0, top, width: left, height: frameSize, backgroundColor: theme.colors.scanner.overlayVignette }} />
+      <View style={{ position: "absolute", left: 0, right: 0, top: top + frameSize, bottom: 0, backgroundColor: theme.colors.scanner.overlayVignette }} />
 
       <Animated.View style={frameStyle}>
         <ScanCorner detected={detected} style={{ top, left, borderTopWidth: CORNER_WIDTH, borderLeftWidth: CORNER_WIDTH }} />
-        <ScanCorner detected={detected} style={{ top, left: left + FRAME_SIZE - CORNER_SIZE, borderTopWidth: CORNER_WIDTH, borderRightWidth: CORNER_WIDTH }} />
-        <ScanCorner detected={detected} style={{ top: top + FRAME_SIZE - CORNER_SIZE, left, borderBottomWidth: CORNER_WIDTH, borderLeftWidth: CORNER_WIDTH }} />
-        <ScanCorner detected={detected} style={{ top: top + FRAME_SIZE - CORNER_SIZE, left: left + FRAME_SIZE - CORNER_SIZE, borderBottomWidth: CORNER_WIDTH, borderRightWidth: CORNER_WIDTH }} />
+        <ScanCorner detected={detected} style={{ top, left: left + frameSize - CORNER_SIZE, borderTopWidth: CORNER_WIDTH, borderRightWidth: CORNER_WIDTH }} />
+        <ScanCorner detected={detected} style={{ top: top + frameSize - CORNER_SIZE, left, borderBottomWidth: CORNER_WIDTH, borderLeftWidth: CORNER_WIDTH }} />
+        <ScanCorner detected={detected} style={{ top: top + frameSize - CORNER_SIZE, left: left + frameSize - CORNER_SIZE, borderBottomWidth: CORNER_WIDTH, borderRightWidth: CORNER_WIDTH }} />
       </Animated.View>
 
-      <Text style={{ position: "absolute", top: top + FRAME_SIZE + 24, alignSelf: "center", color: theme.colors.textSecondary, fontFamily: theme.fonts.sans }}>
+      <Text style={{ position: "absolute", left: 18, right: 18, top: Math.max(top - 48, 108), color: theme.colors.textSecondary, fontFamily: theme.fonts.display, fontSize: 13, letterSpacing: 1, textAlign: "center" }}>
         Align QR code within the frame
       </Text>
     </View>
@@ -77,16 +92,111 @@ function ScannerOverlay({ detected }: { detected: boolean }) {
 
 export default function ScannerScreen() {
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
   const snapPoints = useMemo(() => ["15%"], []);
   const currentScan = useScanStore((state) => state.currentScan);
-  const { hasPermission, isAnalyzing, error, onBarcodeScanned, cameraRef } = useScanner();
-  const detected = isAnalyzing;
+  const {
+    hasPermission,
+    isAnalyzing,
+    isUploading,
+    error,
+    torchOn,
+    toggleTorch,
+    zoom,
+    setZoom,
+    captureAndScan,
+    pickFromLibrary,
+    cameraRef
+  } = useScanner();
+  const isFocused = useIsFocused();
+  const [qrInFrame, setQrInFrame] = useState(false);
+  const [framedQrPayload, setFramedQrPayload] = useState<string | null>(null);
+  const detectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const baseZoomRef = useRef(0);
+  const cameraActive = isFocused && !isAnalyzing;
+
+  useEffect(() => {
+    if (isFocused) return;
+    setQrInFrame(false);
+    setFramedQrPayload(null);
+    if (detectionTimeoutRef.current) clearTimeout(detectionTimeoutRef.current);
+  }, [isFocused]);
+
+  const pinchGesture = useMemo(
+    () =>
+      Gesture.Pinch()
+        .onBegin(() => {
+          baseZoomRef.current = zoom;
+        })
+        .onUpdate((event) => {
+          const next = Math.min(Math.max(baseZoomRef.current + (event.scale - 1) * 0.35, 0), 1);
+          runOnJS(setZoom)(next);
+        }),
+    [setZoom, zoom]
+  );
+  const frameSize = useMemo(() => Math.min(Math.max(width - 72, MIN_FRAME_SIZE), MAX_FRAME_SIZE), [width]);
+  const frame = useMemo(() => {
+    const left = (width - frameSize) / 2;
+    const top = (height - frameSize) / 2;
+    return {
+      left,
+      top,
+      right: left + frameSize,
+      bottom: top + frameSize
+    };
+  }, [frameSize, height, width]);
+  const detected = isAnalyzing || qrInFrame;
+  const uploadButtonBottom = Math.max(insets.bottom, 10) + 8;
+  const captureButtonBottom = uploadButtonBottom + 66;
+
+  useEffect(() => {
+    return () => {
+      if (detectionTimeoutRef.current) clearTimeout(detectionTimeoutRef.current);
+    };
+  }, []);
+
+  const handleQrDetected = useCallback((result: BarcodeScanningResult) => {
+    const margin = 8;
+    const points = result.cornerPoints?.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y)) ?? [];
+    const bounds = result.bounds;
+    const box =
+      points.length >= 4
+        ? {
+            left: Math.min(...points.map((point) => point.x)),
+            top: Math.min(...points.map((point) => point.y)),
+            right: Math.max(...points.map((point) => point.x)),
+            bottom: Math.max(...points.map((point) => point.y))
+          }
+        : bounds?.size?.width && bounds?.size?.height
+          ? {
+              left: bounds.origin.x,
+              top: bounds.origin.y,
+              right: bounds.origin.x + bounds.size.width,
+              bottom: bounds.origin.y + bounds.size.height
+            }
+          : null;
+
+    const isInsideFrame = box
+      ? box.left >= frame.left - margin &&
+        box.top >= frame.top - margin &&
+        box.right <= frame.right + margin &&
+        box.bottom <= frame.bottom + margin
+      : false;
+
+    setQrInFrame(isInsideFrame);
+    setFramedQrPayload(isInsideFrame ? result.data.trim() : null);
+    if (detectionTimeoutRef.current) clearTimeout(detectionTimeoutRef.current);
+    detectionTimeoutRef.current = setTimeout(() => {
+      setQrInFrame(false);
+      setFramedQrPayload(null);
+    }, 650);
+  }, [frame]);
 
   if (hasPermission === null) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.background, alignItems: "center", justifyContent: "center", padding: 24 }}>
         <ActivityIndicator color={theme.colors.accent} />
-        <Text style={{ color: theme.colors.textSecondary, marginTop: 14 }}>Requesting camera access…</Text>
+        <Text style={{ color: theme.colors.textSecondary, marginTop: 14, fontFamily: theme.fonts.display }}>Requesting camera access...</Text>
       </View>
     );
   }
@@ -96,7 +206,7 @@ export default function ScannerScreen() {
       <View style={{ flex: 1, backgroundColor: theme.colors.background, paddingHorizontal: 18, paddingTop: insets.top + 28, paddingBottom: Math.max(insets.bottom, 18) + 18, justifyContent: "center", gap: 16 }}>
         <View style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, backgroundColor: theme.colors.surface, padding: 22, gap: 14, ...theme.shadows.panel }}>
           <Text style={{ ...theme.typography.eyebrow }}>SAFESCAN QR</Text>
-          <Text style={{ color: theme.colors.textPrimary, fontSize: 30, fontFamily: theme.fonts.sansSemiBold }}>Camera access needed</Text>
+          <Text style={{ color: theme.colors.textPrimary, fontSize: 30, fontFamily: theme.fonts.display }}>Camera access needed</Text>
           <Text style={{ color: theme.colors.textSecondary, fontSize: 16, lineHeight: 24 }}>
             Enable camera permission to scan and analyze QR codes before opening anything.
           </Text>
@@ -108,29 +218,112 @@ export default function ScannerScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <CameraView
-        ref={cameraRef}
-        style={{ flex: 1 }}
-        facing="back"
-        active={!isAnalyzing}
-        barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-        onBarcodeScanned={isAnalyzing ? undefined : (result: BarcodeScanningResult) => onBarcodeScanned(result.data)}
-      >
-        <ScannerOverlay detected={detected} />
-      </CameraView>
-
-      <View style={{ position: "absolute", top: insets.top + 18, left: 18, right: 18 }}>
-        <Text style={{ color: theme.colors.textPrimary, fontSize: 24, fontFamily: theme.fonts.sansSemiBold, textAlign: "center" }}>SafeScan QR</Text>
+      <GestureDetector gesture={pinchGesture}>
+        <CameraView
+          ref={cameraRef}
+          style={{ flex: 1 }}
+          facing="back"
+          active={cameraActive}
+          enableTorch={torchOn && cameraActive}
+          zoom={zoom}
+          barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+          onBarcodeScanned={cameraActive ? handleQrDetected : undefined}
+        />
+      </GestureDetector>
+      <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+        <ScannerOverlay detected={detected} frameSize={frameSize} />
       </View>
+
+      <View style={{ position: "absolute", top: insets.top + 18, left: 18, right: 18, flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
+        <Text style={{ color: theme.colors.textPrimary, fontSize: 24, fontFamily: theme.fonts.display, textAlign: "center", letterSpacing: 0.4 }}>SafeScan QR</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={torchOn ? "Turn flashlight off" : "Turn flashlight on"}
+          onPress={toggleTorch}
+          hitSlop={10}
+          style={({ pressed }) => ({
+            position: "absolute",
+            right: 0,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            backgroundColor: torchOn ? theme.colors.primaryDim : theme.colors.surfaceElevated,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.8 : 1
+          })}
+        >
+          <Feather name={torchOn ? "zap" : "zap-off"} size={18} color={torchOn ? theme.colors.accent : theme.colors.textPrimary} />
+        </Pressable>
+      </View>
+
+      {zoom > 0.01 ? (
+        <View pointerEvents="none" style={{ position: "absolute", top: insets.top + 70, alignSelf: "center", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: theme.colors.surfaceElevated, borderWidth: 1, borderColor: theme.colors.border }}>
+          <Text style={{ color: theme.colors.textPrimary, fontSize: 11, fontFamily: theme.fonts.display, letterSpacing: 0.8 }}>
+            {`${(1 + zoom * 9).toFixed(1)}x`}
+          </Text>
+        </View>
+      ) : null}
 
       {isAnalyzing ? (
         <View style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.risk.card.overlayBg }}>
           <View style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, backgroundColor: theme.colors.surfaceElevated, paddingHorizontal: 22, paddingVertical: 18, alignItems: "center", gap: 12 }}>
             <ActivityIndicator color={theme.colors.accent} />
-            <Text style={{ color: theme.colors.textPrimary, fontFamily: theme.fonts.sansSemiBold }}>Analyzing…</Text>
+            <Text style={{ color: theme.colors.textPrimary, fontFamily: theme.fonts.display }}>{isUploading ? "Decoding upload..." : "Analyzing..."}</Text>
           </View>
         </View>
       ) : null}
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Capture and scan QR code"
+        onPress={() => captureAndScan(framedQrPayload)}
+        disabled={isAnalyzing}
+        style={({ pressed }) => ({
+          position: "absolute",
+          alignSelf: "center",
+          bottom: captureButtonBottom,
+          width: 54,
+          height: 54,
+          borderRadius: 27,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.surfaceElevated,
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: isAnalyzing ? 0.5 : pressed ? 0.82 : 1
+        })}
+      >
+        <Feather name="camera" size={24} color={theme.colors.textPrimary} />
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Upload a QR code image"
+        accessibilityHint="Opens your photo library to pick a QR code image to analyze"
+        onPress={pickFromLibrary}
+        disabled={isAnalyzing}
+        style={({ pressed }) => ({
+          position: "absolute",
+          alignSelf: "center",
+          bottom: uploadButtonBottom,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          borderRadius: 8,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.surfaceElevated,
+          opacity: isAnalyzing ? 0.5 : pressed ? 0.85 : 1
+        })}
+      >
+        <Feather name="image" size={16} color={theme.colors.textPrimary} />
+        <Text style={{ color: theme.colors.textPrimary, fontFamily: theme.fonts.display, fontSize: 12 }}>Upload QR</Text>
+      </Pressable>
 
       {error ? (
         <View style={{ position: "absolute", left: 18, right: 18, bottom: Math.max(insets.bottom, 20) + 112, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.risk.danger.border, backgroundColor: theme.colors.risk.danger.bg, padding: 12 }}>
@@ -148,8 +341,8 @@ export default function ScannerScreen() {
         <View style={{ flex: 1, paddingHorizontal: 18, paddingBottom: Math.max(insets.bottom, 10), gap: 10 }}>
           <Text style={{ ...theme.typography.eyebrow, fontSize: 11 }}>LAST SCAN</Text>
           <View style={{ alignSelf: "flex-start", maxWidth: "100%", borderRadius: 999, borderWidth: 1, borderColor: currentScan ? theme.colors.border : theme.colors.primaryDim, backgroundColor: currentScan ? theme.colors.surface : theme.colors.primaryDim, paddingHorizontal: 12, paddingVertical: 8 }}>
-            <Text style={{ color: currentScan ? theme.colors.textPrimary : theme.colors.accent, fontFamily: theme.fonts.sansSemiBold }}>
-              {currentScan ? `${currentScan.verdict.toUpperCase()} · ${truncateMiddle(currentScan.url, 36)}` : "Ready to scan"}
+            <Text style={{ color: currentScan ? theme.colors.textPrimary : theme.colors.accent, fontFamily: theme.fonts.display }}>
+              {currentScan ? `${currentScan.verdict.toUpperCase()} - ${truncateMiddle(currentScan.url, 36)}` : "Ready to scan"}
             </Text>
           </View>
         </View>

@@ -8,6 +8,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, w
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "@/constants/theme";
 import { api, type AnalyzeResult, type ScanHistoryItem } from "@/services/api";
+import { useAuthStore } from "@/stores/authStore";
 import { useScanStore, type ScanRecord } from "@/stores/scanStore";
 import { truncateMiddle } from "@/utils/url";
 
@@ -85,6 +86,11 @@ function historyEntryToAnalyzeResult(item: HistoryEntry): AnalyzeResult {
   };
 }
 
+function isHiddenHistoryError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  return /SafeScan API (?:0|401)|EXPO_PUBLIC_API_BASE_URL|Authentication required|Missing refresh token/i.test(error.message);
+}
+
 function SkeletonRow() {
   const opacity = useSharedValue(0.35);
 
@@ -109,8 +115,8 @@ function VerdictBadge({ verdict }: { verdict: string }) {
   const styles = verdictStyles[verdict] ?? verdictStyles.warn;
 
   return (
-    <View className={`rounded-pill border px-3 py-1 ${styles.badge}`}>
-      <Text className={`font-semibold text-xs ${styles.text}`}>{styles.label}</Text>
+    <View className={`rounded-web border px-3 py-2 ${styles.badge}`}>
+      <Text className={`font-display text-xs uppercase tracking-widest ${styles.text}`}>{styles.label}</Text>
     </View>
   );
 }
@@ -120,9 +126,16 @@ export default function AnalyzeScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const localHistory = useScanStore((state) => state.history);
+  const apiSessionVersion = useAuthStore((state) => state.apiSessionVersion);
+  const hasBackendSession = useAuthStore((state) => state.hasBackendSession);
+  // Including apiSessionVersion in the queryKey means React Query treats this
+  // as a fresh query whenever a new backend access token is seeded — that's
+  // how we recover from sign-in races where the first fetch fired before the
+  // token landed.
   const historyQuery = useQuery({
-    queryKey: ["scan", "history"],
-    queryFn: () => api.scan.history()
+    queryKey: ["scan", "history", apiSessionVersion],
+    queryFn: () => api.scan.history(),
+    enabled: hasBackendSession
   });
 
   const historyEntries = useMemo(() => {
@@ -137,8 +150,10 @@ export default function AnalyzeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void historyQuery.refetch();
-    }, [historyQuery.refetch])
+      if (hasBackendSession) {
+        void historyQuery.refetch();
+      }
+    }, [hasBackendSession, historyQuery.refetch])
   );
 
   const openResult = (item: HistoryEntry) => {
@@ -155,15 +170,26 @@ export default function AnalyzeScreen() {
       <Pressable
         accessibilityRole="button"
         onPress={() => openResult(item)}
-        className="mb-3 rounded-web border border-border bg-surface p-4"
+        className="mb-3 rounded-web border border-border bg-surface px-4 py-4"
       >
-        <Text className="font-mono text-sm text-textPrimary" numberOfLines={1}>
-          {truncateMiddle(result.url, 54)}
-        </Text>
-        <View className="mt-4 flex-row items-center justify-between gap-3">
-          <VerdictBadge verdict={result.verdict} />
-          <Text className="font-semibold text-base text-textPrimary">{result.riskScore}/100</Text>
-          <Text className="flex-1 text-right font-ui text-sm text-textSecondary" numberOfLines={1}>
+        <View className="flex-row items-center justify-between gap-4">
+          <View className="min-w-0 flex-1">
+            <Text className="font-display text-xs uppercase tracking-widest text-accent">Payload</Text>
+            <Text className="mt-2 font-mono text-sm leading-5 text-textPrimary" numberOfLines={2}>
+              {truncateMiddle(result.url, 64)}
+            </Text>
+          </View>
+          <View className="items-center justify-center self-stretch">
+            <VerdictBadge verdict={result.verdict} />
+          </View>
+        </View>
+
+        <View className="mt-4 flex-row items-center justify-between border-t border-border pt-3">
+          <View>
+            <Text className="font-display text-xs uppercase tracking-widest text-textSecondary">Risk score</Text>
+            <Text className="mt-1 font-display text-xl text-textPrimary">{result.riskScore}/100</Text>
+          </View>
+          <Text className="max-w-[48%] text-right font-ui text-sm text-textSecondary" numberOfLines={1}>
             {relativeTime}
           </Text>
         </View>
@@ -174,8 +200,8 @@ export default function AnalyzeScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background, paddingTop: insets.top + 28 }}>
       <View className="px-4 pb-5">
-        <Text className="font-semibold text-xs uppercase tracking-widest text-accent">SafeScan QR</Text>
-        <Text className="mt-2 font-semibold text-3xl text-textPrimary">Scan History</Text>
+        <Text className="font-display text-xs uppercase tracking-widest text-accent">SafeScan QR</Text>
+        <Text className="mt-2 font-display text-3xl text-textPrimary">Scan History</Text>
       </View>
 
       {historyQuery.isPending && historyEntries.length === 0 ? (
@@ -193,14 +219,14 @@ export default function AnalyzeScreen() {
           refreshControl={<RefreshControl refreshing={historyQuery.isFetching && !historyQuery.isPending} onRefresh={() => historyQuery.refetch()} tintColor={theme.colors.accent} />}
           ListEmptyComponent={
             <View style={{ minHeight: 420 }} className="items-center justify-center px-6">
-              <Text className="text-center font-semibold text-xl text-textPrimary">No scans yet.</Text>
+              <Text className="text-center font-display text-xl text-textPrimary">No scans yet.</Text>
               <Text className="mt-2 text-center font-ui text-base text-textSecondary">Scan your first QR code.</Text>
             </View>
           }
         />
       )}
 
-      {historyQuery.error && historyEntries.length === 0 ? (
+      {historyQuery.error && historyEntries.length === 0 && !isHiddenHistoryError(historyQuery.error) ? (
         <Text className="px-4 pt-4 text-center font-ui text-danger">
           {historyQuery.error instanceof Error ? historyQuery.error.message : "Could not load scan history."}
         </Text>

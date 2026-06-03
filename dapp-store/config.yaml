@@ -1,0 +1,70 @@
+# Solana dApp Store publishing config
+# Reference: https://docs.solanamobile.com/dapp-publishing/intro
+#
+# Fill in the TODO fields and then publish with the official CLI:
+#   npm install -g @solana-mobile/dapp-store-cli
+#   npx dapp-store create publisher --keypair ./publisher.json
+#   npx dapp-store create app --keypair ./publisher.json
+#   npx dapp-store create release --keypair ./publisher.json --build-tools-path ~/Library/Android/sdk/build-tools/<ver>
+#   npx dapp-store publish submit --keypair ./publisher.json --requestor-is-authorized --complies-with-solana-dapp-store-policies
+
+publisher:
+  name: SafeScan
+  address: "" # TODO: publisher wallet address (must be funded with a small amount of SOL for tx fees)
+  website: "https://safescan-qr.onrender.com"
+  email: "support@safescan.app" # TODO: confirm or replace with a real contact
+
+app:
+  name: "SafeScan QR"
+  address: "" # populated by `dapp-store create app`
+  android_package: "com.safescan.qr"
+  urls:
+    license_url: "https://safescan-qr.onrender.com/legal/terms"
+    copyright_url: "https://safescan-qr.onrender.com/legal/terms"
+    privacy_policy_url: "https://safescan-qr.onrender.com/legal/privacy"
+    website: "https://safescan-qr.onrender.com"
+
+release:
+  address: "" # populated by `dapp-store create release`
+  media:
+    - purpose: icon
+      uri: "./media/icon-512.png" # TODO: 512x512 PNG, transparent or solid; copy from assets/images/icon.png
+    - purpose: banner
+      uri: "./media/banner-1920x600.png" # TODO: 1920x600 PNG marketing banner
+    - purpose: screenshot
+      uri: "./media/screenshots/scanner.png" # TODO: 1080x1920 PNG of scanner screen
+    - purpose: screenshot
+      uri: "./media/screenshots/result.png"
+    - purpose: screenshot
+      uri: "./media/screenshots/airdrop.png"
+  files:
+    - purpose: install
+      uri: "./build/safescan.apk" # TODO: drop the EAS-built APK here before publishing
+  catalog:
+    en-US:
+      name: "SafeScan QR"
+      short_description: "Scan QR codes safely before they scan you."
+      long_description: |
+        SafeScan QR analyzes every QR code you scan against a layered risk engine — domain
+        reputation, redirect chains, wallet-drain patterns, and on-device heuristics — and
+        gives you a safe / caution / danger verdict before you ever open the link.
+
+        Features:
+        • Camera + photo-library QR scanning with torch and pinch-to-zoom
+        • Offline-first: heuristic verdict when the network is down, auto-replay when back online
+        • Solana wallet connect (Phantom) with signed-message verification
+        • Airdrop tier progression and referrals
+        • Privacy-first: scan history stays on-device unless you sign in
+      new_in_version: "Initial release."
+      saga_features: ""
+      sagaFeaturesLocalized: ""
+  solana_mobile_dapp_publisher_portal:
+    google_store_package: "com.safescan.qr"
+    testing_instructions: |
+      1. Tap "Continue with Google" on the splash screen.
+      2. After sign-in, you land on the scanner tab. Point camera at any QR code.
+      3. Tap Profile → Connect Solana Wallet → Phantom to test wallet connect.
+
+solana_mobile:
+  testing_instructions: |
+    Test credentials, if any, go in the dApp Publisher Portal field, not here.

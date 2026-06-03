@@ -24,9 +24,9 @@ function verdictToLegacyRisk(verdict: z.infer<typeof RiskVerdictSchema>) {
 }
 
 function tierNameToNumber(tier?: string) {
-  if (tier === "Guardian") return 4 as const;
-  if (tier === "Referrer") return 3 as const;
-  if (tier === "Scanner") return 2 as const;
+  if (tier === "Guardian") return 3 as const;
+  if (tier === "Referrer") return 2 as const;
+  if (tier === "Scanner") return 1 as const;
   return 1 as const;
 }
 
@@ -102,7 +102,7 @@ export const AnalyzeResultSchema = z
     counted: z.boolean().optional(),
     scanCount: z.number().optional(),
     payloadType: z.string().optional(),
-    source: z.enum(["backend", "demo-fallback"]).optional(),
+    source: z.enum(["backend", "demo-fallback", "local-only"]).optional(),
     mlRisk: MlRiskSchema.optional(),
     ruleScore: z.number().min(0).max(100).optional(),
     threatType: z.string().optional()

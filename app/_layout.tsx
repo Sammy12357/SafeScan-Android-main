@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Image, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Slot, usePathname, useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 import { StatusBar } from "expo-status-bar";
@@ -10,7 +10,9 @@ import { useFonts } from "expo-font";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { ServerWakeBanner } from "@/components/ServerWakeBanner";
-import { ToastProvider } from "@/components/shared/ToastProvider";
+import { ToastProvider, useToast } from "@/components/shared/ToastProvider";
+import { useOfflineQueue } from "@/hooks/useOfflineQueue";
+import { errorBus, formatApiError } from "@/services/errors";
 import { colors } from "@/constants/theme";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -24,8 +26,26 @@ const queryClient = new QueryClient({
       staleTime: 30_000,
       gcTime: 300_000
     }
-  }
+  },
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      if (query.meta?.silent) return;
+      errorBus.emit(formatApiError(error));
+    }
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _vars, _ctx, mutation) => {
+      if (mutation.meta?.silent) return;
+      errorBus.emit(formatApiError(error));
+    }
+  })
 });
+
+function ToastBridge() {
+  const { showToast } = useToast();
+  useEffect(() => errorBus.subscribe((message) => showToast(message, "error")), [showToast]);
+  return null;
+}
 
 function SplashScreen() {
   return (
@@ -62,6 +82,8 @@ function RootNavigator({ fontsLoaded }: { fontsLoaded: boolean }) {
   const hydrateFromStorage = useAuthStore((state) => state.hydrateFromStorage);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isLoading = useAuthStore((state) => state.isLoading);
+
+  useOfflineQueue();
 
   useEffect(() => {
     hydrateFromStorage();
@@ -145,6 +167,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
           <ToastProvider>
+            <ToastBridge />
             <RootNavigator fontsLoaded={fontsLoaded} />
           </ToastProvider>
         </SafeAreaProvider>

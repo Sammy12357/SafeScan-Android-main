@@ -1,12 +1,3 @@
-const defaultAdminEmails = ["homzajoe@gmail.com", "restreposamuel2004@gmail.com"] as const;
-
-function parseEmails(value = "") {
-  return value
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-}
-
 function isConfiguredClientId(value = "") {
   return value.includes(".apps.googleusercontent.com") && !value.includes("YOUR_GOOGLE");
 }
@@ -17,7 +8,6 @@ export const config = {
   googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? "",
   googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? "",
   hasGoogleClientId: isConfiguredClientId(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? "") || isConfiguredClientId(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? ""),
-  adminEmails: Array.from(new Set([...defaultAdminEmails, ...parseEmails(process.env.EXPO_PUBLIC_ADMIN_EMAILS)])),
   serverWakeDelayMs: 5000,
   analyzeTimeoutMs: 60000,
   appScheme: "safescan",
@@ -26,6 +16,9 @@ export const config = {
 
 export type UserRole = "user" | "admin";
 
-export function roleForEmail(email?: string | null): UserRole {
-  return email && config.adminEmails.includes(email.trim().toLowerCase()) ? "admin" : "user";
+// IMPORTANT: client never decides who is an admin. The backend's user profile
+// must populate `role` and any privileged action must re-check on the server.
+// This function exists only to surface a role already asserted by the backend.
+export function roleForEmail(email?: string | null, backendRole?: UserRole | null): UserRole {
+  return backendRole === "admin" && email ? "admin" : "user";
 }

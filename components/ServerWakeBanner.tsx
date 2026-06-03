@@ -27,10 +27,10 @@ export function ServerWakeBanner() {
   if (!visible) return null;
 
   return (
-    <View pointerEvents="none" className="absolute left-4 right-4 z-50" style={{ top: insets.top + 8 }}>
-      <View className="overflow-hidden rounded-web border border-risk-warn-border bg-risk-warn-bg shadow-lg">
-        <View className="px-4 py-3">
-          <Text className="font-semibold text-sm text-risk-warn-text">Backend warming up — may take up to 45s…</Text>
+    <View pointerEvents="none" className="absolute left-4 right-4 z-50" style={{ bottom: insets.bottom + 104 }}>
+      <View className="overflow-hidden rounded-web border border-risk-warn-border bg-background/95 shadow-lg">
+        <View className="px-4 py-2.5">
+          <Text className="text-center font-ui text-xs text-risk-warn-text">Backend warming up - up to 45s</Text>
         </View>
         <View className="h-1 overflow-hidden bg-border">
           <Animated.View className="h-full w-full origin-left bg-risk-warn-text" style={progressStyle} />

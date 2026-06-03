@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Feather } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";
@@ -216,6 +216,17 @@ export default function ScanResultScreen() {
 
   const result = cachedResult ?? localResult ?? historyQuery.data;
   const reportText = useMemo(() => (result ? formatReport(result) : ""), [result]);
+  const scrollRef = useRef<ScrollView | null>(null);
+
+  // Land at the top of the report every time a new scan loads. Without
+  // this, the cached-screens behavior in expo-router/react-native-screens
+  // can restore the previous scroll position from the last visit (or, on
+  // some Android devices, leave the report scrolled past the verdict at
+  // first paint because of how layout settles around the confetti cannon).
+  useEffect(() => {
+    if (!result) return;
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [result?.scanId]);
 
   const shareReport = async () => {
     if (!result) return;
@@ -302,7 +313,13 @@ export default function ScanResultScreen() {
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       {result.verdict === "safe" ? <ConfettiCannon count={70} origin={{ x: 180, y: -20 }} fadeOut autoStart /> : null}
       <ScrollView
+        ref={scrollRef}
         style={{ flex: 1 }}
+        // Stop iOS from auto-shifting initial scroll position to "below" the
+        // header inset; we already account for it in paddingTop and want
+        // the scroll origin to be the absolute top of content.
+        automaticallyAdjustContentInsets={false}
+        contentInsetAdjustmentBehavior="never"
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingTop: insets.top + 18,

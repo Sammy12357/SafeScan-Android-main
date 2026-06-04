@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
@@ -139,6 +139,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const hydrateFromStorage = useAuthStore((state) => state.hydrateFromStorage);
   const history = useScanStore((state) => state.history);
   const airdropStatus = useAirdropStore((state) => state.status);
   const referral = useAirdropStore((state) => state.referral);
@@ -150,6 +151,22 @@ export default function ProfileScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [walletError, setWalletError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Force-refresh the profile + airdrop status + referral stats from the
+  // backend. Used both by the pull-to-refresh gesture and the explicit
+  // Refresh button - the user's main reason for asking is that the airdrop
+  // tier sometimes lags the backend ("Pending" when it shouldn't be),
+  // typically when a scan or wallet connect was counted server-side but
+  // the mobile cache hasn't picked it up yet.
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.allSettled([fetchAirdropStatus(), hydrateFromStorage()]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [fetchAirdropStatus, hydrateFromStorage]);
 
   // Refetch when a new backend session is seeded so post-login state replaces
   // the empty placeholder fetched during the sign-in race window.
@@ -249,6 +266,15 @@ export default function ProfileScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       contentContainerStyle={{ paddingHorizontal: 16, paddingTop: insets.top + 24, gap: 16, paddingBottom: Math.max(insets.bottom, 20) + 36 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          tintColor={theme.colors.accent}
+          colors={[theme.colors.accent]}
+          progressBackgroundColor={theme.colors.surfaceElevated}
+        />
+      }
     >
       <BrandHeader />
 
@@ -275,6 +301,31 @@ export default function ProfileScreen() {
               {displayEmail}
             </Text>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Refresh profile and airdrop status"
+            accessibilityHint="Reloads totals, tier, and wallet status from the SafeScan backend"
+            onPress={handleRefresh}
+            disabled={isRefreshing}
+            hitSlop={10}
+            style={({ pressed }) => ({
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+              backgroundColor: theme.colors.surface,
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: isRefreshing ? 0.6 : pressed ? 0.8 : 1
+            })}
+          >
+            {isRefreshing ? (
+              <ActivityIndicator size="small" color={theme.colors.accent} />
+            ) : (
+              <Feather name="refresh-cw" size={16} color={theme.colors.textPrimary} />
+            )}
+          </Pressable>
         </View>
 
         <View style={{ flexDirection: "row", gap: 10 }}>

@@ -90,26 +90,30 @@ function LeaderRow({ item }: { item: LeaderboardEntry }) {
 export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets();
   const localHistory = useScanStore((state) => state.history);
+  const lifetimeScans = useScanStore((state) => state.lifetimeScans);
   const leaderboardQuery = useQuery({
     queryKey: ["website-leaderboard"],
     queryFn: fetchLeaderboard,
     staleTime: 60_000
   });
 
+  // Use the same effective scan count as the Profile tab so the two screens
+  // never disagree. lifetimeScans persists and isn't capped by HISTORY_LIMIT.
+  const localScanCount = Math.max(lifetimeScans, localHistory.length);
   const localFallback = useMemo<LeaderboardEntry[]>(
     () =>
-      localHistory.length
+      localScanCount
         ? [
             {
               rank: 1,
               name: "This device",
-              scans: localHistory.length,
+              scans: localScanCount,
               tier: `Latest: ${truncateMiddle(localHistory[0]?.url ?? "Scan", 28)}`,
               isCurrentUser: true
             }
           ]
         : [],
-    [localHistory]
+    [localScanCount, localHistory]
   );
   const entries = leaderboardQuery.data?.length ? leaderboardQuery.data : localFallback;
 

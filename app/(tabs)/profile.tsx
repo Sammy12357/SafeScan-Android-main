@@ -139,13 +139,15 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
-  const hydrateFromStorage = useAuthStore((state) => state.hydrateFromStorage);
   const history = useScanStore((state) => state.history);
+  const lifetimeScans = useScanStore((state) => state.lifetimeScans);
   const airdropStatus = useAirdropStore((state) => state.status);
   const referral = useAirdropStore((state) => state.referral);
   const fetchAirdropStatus = useAirdropStore((state) => state.fetchStatus);
   const apiSessionVersion = useAuthStore((state) => state.apiSessionVersion);
   const hasBackendSession = useAuthStore((state) => state.hasBackendSession);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const userId = useAuthStore((state) => state.user?.id);
   const { connect, disconnect, publicKey, isConnected, isConnecting } = useWallet();
   const [avatarUri, setAvatarUri] = useState(user?.avatarUrl ?? null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -153,20 +155,21 @@ export default function ProfileScreen() {
   const [walletError, setWalletError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Force-refresh the profile + airdrop status + referral stats from the
-  // backend. Used both by the pull-to-refresh gesture and the explicit
-  // Refresh button - the user's main reason for asking is that the airdrop
-  // tier sometimes lags the backend ("Pending" when it shouldn't be),
-  // typically when a scan or wallet connect was counted server-side but
-  // the mobile cache hasn't picked it up yet.
+  // Refresh ONLY the airdrop/profile data shown on this tab. We deliberately
+  // do NOT call hydrateFromStorage() here: that sets auth isLoading=true,
+  // which makes the root layout render the splash screen and bounces the user
+  // off the Profile tab. fetchAirdropStatus re-pulls totals + tier + referrals
+  // without touching auth/navigation, so the spinner stays on this screen.
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await Promise.allSettled([fetchAirdropStatus(), hydrateFromStorage()]);
+      await fetchAirdropStatus();
+    } catch {
+      // swallow — the existing data stays on screen; error toast handled globally
     } finally {
       setIsRefreshing(false);
     }
-  }, [fetchAirdropStatus, hydrateFromStorage]);
+  }, [fetchAirdropStatus]);
 
   // Refetch when a new backend session is seeded so post-login state replaces
   // the empty placeholder fetched during the sign-in race window.
@@ -182,10 +185,34 @@ export default function ProfileScreen() {
   const displayName = user?.name || "SafeScan user";
   const displayEmail = user?.email || "Signed in";
   const initials = useMemo(() => initialsFor(displayName, displayEmail), [displayEmail, displayName]);
-  const totalScans = airdropStatus?.totalScans ?? airdropStatus?.scanCount ?? history.length;
-  const tierNumber = airdropStatus?.tier ?? tiers.find((tier) => tier.name === airdropStatus?.currentTier)?.tier ?? 1;
-  const tierLabel = airdropStatus?.currentTier ?? tiers.find((tier) => tier.tier === tierNumber)?.name ?? "Pending";
+  const isDemo = !isAuthenticated || userId === "demo-user";
   const referralCount = referral?.totalReferrals ?? referral?.referrals ?? airdropStatus?.referrals ?? 0;
+
+  // Effective scan count = the max of every source we have. The backend can
+  // return 0 (it doesn't always count mobile /api/analyze scans), so we floor
+  // it with the device's persisted lifetime counter and the in-memory history
+  // length. This is what the leaderboard's local fallback shows too, so the
+  // two tabs now agree, and lifetimeScans persists across app restarts.
+  const totalScans = Math.max(
+    airdropStatus?.totalScans ?? 0,
+    airdropStatus?.scanCount ?? 0,
+    lifetimeScans,
+    history.length
+  );
+
+  // Derive the tier from the effective scan + referral counts, then take the
+  // max with whatever tier the backend reported. Signed-in users floor at
+  // Scanner (tier 1) so the Profile tab matches the Airdrop tab instead of
+  // showing "Pending" for someone who is clearly logged in and scanning.
+  const derivedTier = [...tiers]
+    .reverse()
+    .find((tier) => totalScans >= tier.scanThreshold && referralCount >= tier.referralThreshold)?.tier;
+  const tierNumber = isDemo
+    ? 0
+    : Math.max(1, airdropStatus?.tier ?? 0, derivedTier ?? 0);
+  const tierLabel = tierNumber >= 1
+    ? tiers.find((tier) => tier.tier === tierNumber)?.name ?? "Scanner"
+    : "Pending";
 
   const pickAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();

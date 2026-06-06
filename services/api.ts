@@ -14,7 +14,9 @@ import type {
   UserProfileResponse,
   WalletNonceResponse,
   WalletStatus,
-  WalletStatusResponse
+  WalletStatusResponse,
+  LeaderboardEntry,
+  LeaderboardResponse
 } from "@/utils/schemas";
 import {
   clearApiTokens,
@@ -30,6 +32,7 @@ import * as userEndpoints from "@/services/endpoints/user";
 import * as airdropEndpoints from "@/services/endpoints/airdrop";
 import * as walletEndpoints from "@/services/endpoints/wallet";
 import * as referralEndpoints from "@/services/endpoints/referral";
+import * as leaderboardEndpoints from "@/services/endpoints/leaderboard";
 import * as checksEndpoints from "@/services/endpoints/checks";
 import * as systemEndpoints from "@/services/endpoints/system";
 import { mockAnalyzeResponse } from "@/services/mock";
@@ -60,7 +63,9 @@ export type {
   UserProfileResponse,
   WalletNonceResponse,
   WalletStatus,
-  WalletStatusResponse
+  WalletStatusResponse,
+  LeaderboardEntry,
+  LeaderboardResponse
 };
 
 export const api = {
@@ -91,6 +96,9 @@ export const api = {
   },
   referral: {
     stats: referralEndpoints.stats
+  },
+  leaderboard: {
+    list: leaderboardEndpoints.list
   },
   checks: {
     reputation: checksEndpoints.reputation,
@@ -160,6 +168,10 @@ export function disconnectWallet() {
 
 export function fetchReferralStatus() {
   return referralEndpoints.stats();
+}
+
+export function fetchLeaderboard(limit = 50) {
+  return leaderboardEndpoints.list(limit);
 }
 
 export function requestWalletNonce(walletAddress: string) {

@@ -2,8 +2,8 @@ import { useMemo } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { config } from "@/constants/config";
 import { theme } from "@/constants/theme";
+import { fetchLeaderboard } from "@/services/api";
 import { useScanStore } from "@/stores/scanStore";
 import { truncateMiddle } from "@/utils/url";
 
@@ -15,49 +15,14 @@ type LeaderboardEntry = {
   isCurrentUser?: boolean;
 };
 
-function decodeHtml(value: string) {
-  return value
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, "\"")
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ");
-}
-
-function stripTags(value: string) {
-  return decodeHtml(value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
-}
-
-function parseLeaderboardRows(html: string): LeaderboardEntry[] {
-  const rows = html.match(/<tr[\s\S]*?<\/tr>/gi) ?? [];
-
-  return rows.reduce<LeaderboardEntry[]>((entries, row) => {
-    const cells = row.match(/<td[\s\S]*?<\/td>/gi) ?? [];
-    if (cells.length < 3 || !cells[0] || !cells[1] || !cells[2]) return entries;
-    const rankText = stripTags(cells[0]);
-    const nameText = stripTags(cells[1]).replace(/\s+\(you\)$/i, "");
-    const scanText = stripTags(cells[2]);
-    const rank = Number(rankText.replace(/[^0-9]/g, ""));
-    const scans = Number(scanText.replace(/[^0-9]/g, ""));
-
-    if (!rank || !nameText) return entries;
-    entries.push({
-      rank,
-      name: nameText,
-      scans: Number.isFinite(scans) ? scans : 0,
-      tier: cells[3] ? stripTags(cells[3]) : undefined,
-      isCurrentUser: /current-user|lb-username-you/i.test(row)
-    });
-    return entries;
-  }, []);
-}
-
-async function fetchLeaderboard() {
-  const response = await fetch(`${config.apiBaseUrl}/leaderboard`);
-  const html = await response.text();
-  if (!response.ok) throw new Error(`Leaderboard unavailable (${response.status}).`);
-  return parseLeaderboardRows(html);
+async function loadLeaderboard(): Promise<LeaderboardEntry[]> {
+  const data = await fetchLeaderboard(50);
+  return data.entries.map((entry) => ({
+    rank: entry.rank,
+    name: entry.name,
+    scans: entry.scans,
+    isCurrentUser: entry.isCurrentUser
+  }));
 }
 
 function LeaderRow({ item }: { item: LeaderboardEntry }) {
@@ -92,13 +57,18 @@ export default function LeaderboardScreen() {
   const localHistory = useScanStore((state) => state.history);
   const lifetimeScans = useScanStore((state) => state.lifetimeScans);
   const leaderboardQuery = useQuery({
-    queryKey: ["website-leaderboard"],
-    queryFn: fetchLeaderboard,
-    staleTime: 60_000
+    queryKey: ["global-leaderboard"],
+    queryFn: loadLeaderboard,
+    // Live board: refetch on focus + every 30s while the tab is open so it
+    // keeps up with scans happening across all users.
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true
   });
 
-  // Use the same effective scan count as the Profile tab so the two screens
-  // never disagree. lifetimeScans persists and isn't capped by HISTORY_LIMIT.
+  // Local fallback only when the live board is genuinely empty (e.g. first
+  // launch before the backend has recorded anything, or offline). lifetimeScans
+  // persists and isn't capped by HISTORY_LIMIT, matching the Profile tab.
   const localScanCount = Math.max(lifetimeScans, localHistory.length);
   const localFallback = useMemo<LeaderboardEntry[]>(
     () =>
@@ -130,7 +100,7 @@ export default function LeaderboardScreen() {
           <Text className="font-display text-xs uppercase tracking-widest text-accent">SafeScan QR</Text>
           <Text className="font-display text-3xl text-textPrimary">Global Leaderboard</Text>
           <Text className="font-ui text-sm leading-6 text-textSecondary">
-            Ranked by unique QR scans from the SafeScan website. Pull down to refresh the latest board.
+            Live ranking of every SafeScan user by total QR scans. Updates automatically; pull down to refresh now.
           </Text>
           {leaderboardQuery.isLoading ? <ActivityIndicator color={theme.colors.accent} /> : null}
           {leaderboardQuery.error ? (

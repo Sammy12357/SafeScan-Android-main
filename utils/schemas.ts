@@ -291,6 +291,32 @@ export const ReportResponseSchema = z.object({
   status: z.string().optional()
 });
 
+export const LeaderboardEntrySchema = z
+  .object({
+    rank: z.number().optional(),
+    name: z.string().optional(),
+    scans: z.number().optional(),
+    isCurrentUser: z.boolean().optional()
+  })
+  .transform((entry) => ({
+    rank: entry.rank ?? 0,
+    name: entry.name?.trim() || "SafeScan user",
+    scans: entry.scans ?? 0,
+    isCurrentUser: entry.isCurrentUser ?? false
+  }));
+
+export const LeaderboardResponseSchema = z
+  .object({
+    entries: z.array(LeaderboardEntrySchema).optional(),
+    total: z.number().optional(),
+    updatedAt: z.string().optional()
+  })
+  .transform((res) => ({
+    entries: res.entries ?? [],
+    total: res.total ?? res.entries?.length ?? 0,
+    updatedAt: res.updatedAt
+  }));
+
 export const EmptyResponseSchema = z.unknown();
 export const UnknownResponseSchema = z.unknown();
 
@@ -311,3 +337,5 @@ export type TokenPair = z.infer<typeof TokenPairSchema>;
 export type WalletStatus = z.infer<typeof WalletStatusSchema>;
 export type WalletStatusResponse = WalletStatus;
 export type WalletNonceResponse = z.infer<typeof WalletNonceResponseSchema>;
+export type LeaderboardEntry = z.infer<typeof LeaderboardEntrySchema>;
+export type LeaderboardResponse = z.infer<typeof LeaderboardResponseSchema>;

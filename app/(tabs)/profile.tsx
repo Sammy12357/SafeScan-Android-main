@@ -297,8 +297,8 @@ export default function ProfileScreen() {
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={handleRefresh}
-          tintColor={theme.colors.accent}
-          colors={[theme.colors.accent]}
+          tintColor="#ffffff"
+          colors={["#ffffff"]}
           progressBackgroundColor={theme.colors.surfaceElevated}
         />
       }

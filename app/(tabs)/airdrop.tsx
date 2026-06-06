@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
-import { ActivityIndicator, Pressable, ScrollView, Share, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Share, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/ui/Button";
@@ -108,7 +108,21 @@ export default function AirdropScreen() {
   const [walletError, setWalletError] = useState<string | null>(null);
   const [selectedTierIndex, setSelectedTierIndex] = useState(0);
   const [referralCopied, setReferralCopied] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const referralCopiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Pull-to-refresh: only re-pull this tab's airdrop + referral data. No
+  // auth/navigation side effects, so the spinner stays on the Airdrop tab.
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchStatus();
+    } catch {
+      // existing data stays on screen; global error toast handles messaging
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [fetchStatus]);
 
   // Refetch every time a new backend session is seeded so the screen recovers
   // from sign-in races where the first fetch fired before the access token
@@ -197,6 +211,15 @@ export default function AirdropScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       contentContainerStyle={{ paddingHorizontal: 16, paddingTop: insets.top + 28, paddingBottom: Math.max(insets.bottom, 20) + 36, gap: 18 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          tintColor="#ffffff"
+          colors={["#ffffff"]}
+          progressBackgroundColor={theme.colors.surfaceElevated}
+        />
+      }
     >
       <View className="gap-2">
         <Text className="font-display text-xs uppercase tracking-widest text-accent">Community allocation</Text>

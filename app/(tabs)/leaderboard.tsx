@@ -124,7 +124,7 @@ export default function LeaderboardScreen() {
       data={entries}
       keyExtractor={(item) => `${item.rank}-${item.name}`}
       renderItem={({ item }) => <LeaderRow item={item} />}
-      refreshControl={<RefreshControl tintColor={theme.colors.accent} refreshing={leaderboardQuery.isRefetching} onRefresh={() => leaderboardQuery.refetch()} />}
+      refreshControl={<RefreshControl tintColor="#ffffff" colors={["#ffffff"]} progressBackgroundColor={theme.colors.surfaceElevated} refreshing={leaderboardQuery.isRefetching} onRefresh={() => leaderboardQuery.refetch()} />}
       ListHeaderComponent={
         <View className="mb-5 gap-3">
           <Text className="font-display text-xs uppercase tracking-widest text-accent">SafeScan QR</Text>

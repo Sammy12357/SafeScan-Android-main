@@ -317,7 +317,7 @@ export default function AnalyzeScreen() {
           renderItem={renderItem}
           keyExtractor={(item) => item.scanId}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 20) + 28 }}
-          refreshControl={<RefreshControl refreshing={historyQuery.isFetching && !historyQuery.isPending} onRefresh={() => historyQuery.refetch()} tintColor={theme.colors.accent} />}
+          refreshControl={<RefreshControl refreshing={historyQuery.isFetching && !historyQuery.isPending} onRefresh={() => historyQuery.refetch()} tintColor="#ffffff" colors={["#ffffff"]} progressBackgroundColor={theme.colors.surfaceElevated} />}
           ListEmptyComponent={
             <View style={{ minHeight: 420 }} className="items-center justify-center px-6">
               {historyEntries.length === 0 ? (

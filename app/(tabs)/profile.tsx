@@ -339,8 +339,8 @@ export default function ProfileScreen() {
               width: 40,
               height: 40,
               borderRadius: 20,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
+              borderWidth: 1.5,
+              borderColor: "#ffffff",
               backgroundColor: theme.colors.surface,
               alignItems: "center",
               justifyContent: "center",
@@ -348,9 +348,9 @@ export default function ProfileScreen() {
             })}
           >
             {isRefreshing ? (
-              <ActivityIndicator size="small" color={theme.colors.accent} />
+              <ActivityIndicator size="small" color="#ffffff" />
             ) : (
-              <Feather name="refresh-cw" size={16} color={theme.colors.textPrimary} />
+              <Feather name="refresh-cw" size={16} color="#ffffff" />
             )}
           </Pressable>
         </View>

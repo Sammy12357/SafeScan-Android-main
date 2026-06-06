@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlashList } from "@shopify/flash-list";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { useFocusEffect, useRouter } from "expo-router";
-import { RefreshControl, Text, View, Pressable } from "react-native";
+import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "@/constants/theme";
@@ -36,6 +36,29 @@ function normalizeVerdict(verdict: string | undefined, riskScore: number): Analy
   if (riskScore >= 40) return "warn";
   return "safe";
 }
+
+// Scan-history filter buckets, keyed on the 0-100 risk score:
+//   Safe       < 40
+//   Caution    40-60
+//   High Risk  60-90
+//   Malware    >= 90
+type RiskCategory = "safe" | "caution" | "highRisk" | "malware";
+type FilterKey = "all" | RiskCategory;
+
+function riskCategory(score: number): RiskCategory {
+  if (score >= 90) return "malware";
+  if (score >= 60) return "highRisk";
+  if (score >= 40) return "caution";
+  return "safe";
+}
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "safe", label: "Safe" },
+  { key: "caution", label: "Caution" },
+  { key: "highRisk", label: "High Risk" },
+  { key: "malware", label: "Malware" }
+];
 
 function historyItemToEntry(item: ScanHistoryItem): HistoryEntry {
   const verdict = normalizeVerdict(item.verdict, item.riskScore);
@@ -138,6 +161,8 @@ export default function AnalyzeScreen() {
     enabled: hasBackendSession
   });
 
+  const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
+
   const historyEntries = useMemo(() => {
     const remoteEntries = (historyQuery.data ?? []).map(historyItemToEntry);
     const seenScanIds = new Set(remoteEntries.map((item) => item.scanId));
@@ -147,6 +172,21 @@ export default function AnalyzeScreen() {
       (left, right) => new Date(right.analyzedAt).getTime() - new Date(left.analyzedAt).getTime()
     );
   }, [historyQuery.data, localHistory]);
+
+  // Count per bucket for the chip badges, computed once over the full list.
+  const filterCounts = useMemo(() => {
+    const counts: Record<FilterKey, number> = { all: 0, safe: 0, caution: 0, highRisk: 0, malware: 0 };
+    for (const entry of historyEntries) {
+      counts.all += 1;
+      counts[riskCategory(entry.riskScore)] += 1;
+    }
+    return counts;
+  }, [historyEntries]);
+
+  const filteredEntries = useMemo(() => {
+    if (activeFilter === "all") return historyEntries;
+    return historyEntries.filter((entry) => riskCategory(entry.riskScore) === activeFilter);
+  }, [historyEntries, activeFilter]);
 
   useFocusEffect(
     useCallback(() => {
@@ -199,10 +239,71 @@ export default function AnalyzeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background, paddingTop: insets.top + 28 }}>
-      <View className="px-4 pb-5">
+      <View className="px-4 pb-4">
         <Text className="font-display text-xs uppercase tracking-widest text-accent">SafeScan QR</Text>
         <Text className="mt-2 font-display text-3xl text-textPrimary">Scan History</Text>
       </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+        className="mb-4 grow-0"
+      >
+        {FILTERS.map((filter) => {
+          const isActive = activeFilter === filter.key;
+          return (
+            <Pressable
+              key={filter.key}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
+              accessibilityLabel={`Filter by ${filter.label}, ${filterCounts[filter.key]} scans`}
+              onPress={() => setActiveFilter(filter.key)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: isActive ? theme.colors.accent : theme.colors.border,
+                backgroundColor: isActive ? theme.colors.primaryDim : theme.colors.surface
+              }}
+            >
+              <Text
+                style={{
+                  color: isActive ? theme.colors.accent : theme.colors.textSecondary,
+                  fontFamily: theme.fonts.display,
+                  fontSize: 13
+                }}
+              >
+                {filter.label}
+              </Text>
+              <View
+                style={{
+                  minWidth: 20,
+                  paddingHorizontal: 6,
+                  paddingVertical: 1,
+                  borderRadius: 999,
+                  backgroundColor: isActive ? theme.colors.accent : theme.colors.surfaceElevated,
+                  alignItems: "center"
+                }}
+              >
+                <Text
+                  style={{
+                    color: isActive ? theme.colors.primaryButtonText : theme.colors.textSecondary,
+                    fontFamily: theme.fonts.display,
+                    fontSize: 11
+                  }}
+                >
+                  {filterCounts[filter.key]}
+                </Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       {historyQuery.isPending && historyEntries.length === 0 ? (
         <View className="gap-3 px-4">
@@ -212,15 +313,26 @@ export default function AnalyzeScreen() {
         </View>
       ) : (
         <FlashList
-          data={historyEntries}
+          data={filteredEntries}
           renderItem={renderItem}
           keyExtractor={(item) => item.scanId}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom, 20) + 28 }}
           refreshControl={<RefreshControl refreshing={historyQuery.isFetching && !historyQuery.isPending} onRefresh={() => historyQuery.refetch()} tintColor={theme.colors.accent} />}
           ListEmptyComponent={
             <View style={{ minHeight: 420 }} className="items-center justify-center px-6">
-              <Text className="text-center font-display text-xl text-textPrimary">No scans yet.</Text>
-              <Text className="mt-2 text-center font-ui text-base text-textSecondary">Scan your first QR code.</Text>
+              {historyEntries.length === 0 ? (
+                <>
+                  <Text className="text-center font-display text-xl text-textPrimary">No scans yet.</Text>
+                  <Text className="mt-2 text-center font-ui text-base text-textSecondary">Scan your first QR code.</Text>
+                </>
+              ) : (
+                <>
+                  <Text className="text-center font-display text-xl text-textPrimary">
+                    No {FILTERS.find((f) => f.key === activeFilter)?.label.toLowerCase()} scans.
+                  </Text>
+                  <Text className="mt-2 text-center font-ui text-base text-textSecondary">Try a different filter.</Text>
+                </>
+              )}
             </View>
           }
         />

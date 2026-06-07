@@ -1,0 +1,4 @@
+# NEVER commit the publisher private key or any exported secret
+publisher.json
+SECRET_KEY.txt
+*.key

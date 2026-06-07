@@ -10,9 +10,9 @@
 
 publisher:
   name: SafeScan
-  address: "" # TODO: publisher wallet address (must be funded with a small amount of SOL for tx fees)
+  address: "45aqg6KfRYGnXnzBfdDBgPjN6KLLuJpsrbmRfFKy6NB1" # publisher wallet (must be funded with a small amount of SOL for tx fees)
   website: "https://safescan-qr.onrender.com"
-  email: "support@safescan.app" # TODO: confirm or replace with a real contact
+  email: "safescanqr@gmail.com"
 
 app:
   name: "SafeScan QR"

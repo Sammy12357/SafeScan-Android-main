@@ -7,8 +7,8 @@ import { useAuthStore } from "@/stores/authStore";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const AUTH0_DOMAIN = process.env.EXPO_PUBLIC_AUTH0_DOMAIN ?? "dev-vnllaqnkkegs4xni.us.auth0.com";
-const AUTH0_CLIENT_ID = process.env.EXPO_PUBLIC_AUTH0_CLIENT_ID ?? "1XfWxWOtDtN18JCCztRehzcJ1jOSBBic";
+const AUTH0_DOMAIN = process.env.EXPO_PUBLIC_AUTH0_DOMAIN ?? "safe-scan-qr.us.auth0.com";
+const AUTH0_CLIENT_ID = process.env.EXPO_PUBLIC_AUTH0_CLIENT_ID ?? "MPettOuBPUwtgifGOlt6NpJR4rl8BuL7";
 const EXPO_PROXY_USERNAME = process.env.EXPO_PUBLIC_EXPO_PROXY_USERNAME ?? "fellowbeast";
 const EXPO_PROXY_SLUG = process.env.EXPO_PUBLIC_EXPO_PROXY_SLUG ?? "safescan-android";
 const EXPO_GO_AUTH0_REDIRECT_URI = `https://auth.expo.io/@${EXPO_PROXY_USERNAME}/${EXPO_PROXY_SLUG}/`;

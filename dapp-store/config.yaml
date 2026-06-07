@@ -28,15 +28,15 @@ release:
   address: "" # populated by `dapp-store create release`
   media:
     - purpose: icon
-      uri: "./media/icon-512.png" # TODO: 512x512 PNG, transparent or solid; copy from assets/images/icon.png
+      uri: "./media/icon-512.png"
     - purpose: banner
-      uri: "./media/banner-1920x600.png" # TODO: 1920x600 PNG marketing banner
+      uri: "./media/banner-1920x600.png"
     - purpose: screenshot
-      uri: "./media/screenshots/scanner.png" # TODO: 1080x1920 PNG of scanner screen
+      uri: "./media/screenshots/history.png"
     - purpose: screenshot
-      uri: "./media/screenshots/result.png"
+      uri: "./media/screenshots/profile.png"
     - purpose: screenshot
-      uri: "./media/screenshots/airdrop.png"
+      uri: "./media/screenshots/leaderboard.png"
   files:
     - purpose: install
       uri: "./build/safescan.apk" # TODO: drop the EAS-built APK here before publishing
